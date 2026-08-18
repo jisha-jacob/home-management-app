@@ -7,7 +7,18 @@
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
+  <nav class="app-navigation" aria-label="Primary navigation">
+    <button class="navigation-button" type="button" data-screen-target="home" aria-current="page">Home</button>
+    <button class="navigation-button" type="button" data-screen-target="chores">Chores</button>
+    <button class="navigation-button" type="button" data-screen-target="meals">Meals</button>
+    <button class="navigation-button" type="button" data-screen-target="reset">
+      <span class="desktop-label">Family Reset</span>
+      <span class="phone-label">Reset</span>
+    </button>
+    <button class="navigation-button" type="button" data-screen-target="more">More</button>
+  </nav>
   <main id="app">
+    <section class="app-screen" id="home-screen" data-screen="home">
     <header class="dashboard-header">
       <time class="dashboard-date" id="today-date">TODAY</time>
     </header>
@@ -56,7 +67,7 @@
       <section class="dashboard-card chores-card" aria-labelledby="chores-title">
       <div class="card-heading">
         <h2 id="chores-title">Today&rsquo;s Chores</h2>
-        <span class="chore-count">1 of 4 done</span>
+        <span class="chore-count">1 of 6 done</span>
       </div>
       <ul class="chore-list">
         <li class="chore-item">
@@ -80,12 +91,32 @@
           </label>
         </li>
         <li class="chore-item">
+          <span class="person-indicator profile-child-three" aria-hidden="true"></span>
+          <label class="chore-label">
+            <input class="chore-checkbox" type="checkbox">
+            <span class="chore-details">
+              <span class="chore-owner">Child 3</span>
+              <span class="chore-name">Vacuum under dining table</span>
+            </span>
+          </label>
+        </li>
+        <li class="chore-item">
           <span class="person-indicator profile-toddler" aria-hidden="true"></span>
           <label class="chore-label">
             <input class="chore-checkbox" type="checkbox">
             <span class="chore-details">
               <span class="chore-owner">Toddler</span>
               <span class="chore-name">Put toys away</span>
+            </span>
+          </label>
+        </li>
+        <li class="chore-item">
+          <span class="person-indicator profile-mom" aria-hidden="true"></span>
+          <label class="chore-label">
+            <input class="chore-checkbox" type="checkbox">
+            <span class="chore-details">
+              <span class="chore-owner">Mom</span>
+              <span class="chore-name">Review meal plan</span>
             </span>
           </label>
         </li>
@@ -121,6 +152,277 @@
       </dl>
       </section>
     </div>
+    </section>
+    <section class="app-screen" id="chores-screen" data-screen="chores" hidden>
+      <header class="screen-header">
+        <p class="screen-kicker">Household tasks</p>
+        <h1>Chores</h1>
+      </header>
+      <nav class="view-tabs" aria-label="Chore views">
+        <button class="view-tab" type="button" data-chore-view-target="today" aria-pressed="true">Today</button>
+        <button class="view-tab" type="button" data-chore-view-target="rooms" aria-pressed="false">By Room</button>
+        <button class="view-tab" type="button" data-chore-view-target="all" aria-pressed="false">All Tasks</button>
+      </nav>
+      <section class="dashboard-card chore-view" data-chore-view="today" aria-labelledby="chore-view-title">
+        <div class="card-heading">
+          <h2 id="chore-view-title">Today</h2>
+          <span class="chore-count">6 chores due</span>
+        </div>
+        <ul class="chore-list">
+          <li class="chore-item">
+            <span class="person-indicator profile-child-one" aria-hidden="true"></span>
+            <label class="chore-label">
+              <input class="chore-checkbox" type="checkbox">
+              <span class="chore-details">
+                <span class="chore-owner">Child 1</span>
+                <span class="chore-name">Unload dishwasher</span>
+              </span>
+            </label>
+          </li>
+          <li class="chore-item">
+            <span class="person-indicator profile-child-two" aria-hidden="true"></span>
+            <label class="chore-label">
+              <input class="chore-checkbox" type="checkbox">
+              <span class="chore-details">
+                <span class="chore-owner">Child 2</span>
+                <span class="chore-name">Wipe dining table</span>
+              </span>
+            </label>
+          </li>
+          <li class="chore-item">
+            <span class="person-indicator profile-child-three" aria-hidden="true"></span>
+            <label class="chore-label">
+              <input class="chore-checkbox" type="checkbox">
+              <span class="chore-details">
+                <span class="chore-owner">Child 3</span>
+                <span class="chore-name">Vacuum under dining table</span>
+              </span>
+            </label>
+          </li>
+          <li class="chore-item">
+            <span class="person-indicator profile-toddler" aria-hidden="true"></span>
+            <label class="chore-label">
+              <input class="chore-checkbox" type="checkbox">
+              <span class="chore-details">
+                <span class="chore-owner">Toddler</span>
+                <span class="chore-name">Put toys away</span>
+              </span>
+            </label>
+          </li>
+          <li class="chore-item">
+            <span class="person-indicator profile-mom" aria-hidden="true"></span>
+            <label class="chore-label">
+              <input class="chore-checkbox" type="checkbox">
+              <span class="chore-details">
+                <span class="chore-owner">Mom</span>
+                <span class="chore-name">Review meal plan</span>
+              </span>
+            </label>
+          </li>
+          <li class="chore-item">
+            <span class="person-indicator profile-dad" aria-hidden="true"></span>
+            <label class="chore-label">
+              <input class="chore-checkbox" type="checkbox">
+              <span class="chore-details">
+                <span class="chore-owner">Dad</span>
+                <span class="chore-name">Kitchen close</span>
+              </span>
+            </label>
+          </li>
+        </ul>
+      </section>
+      <section class="room-view" data-chore-view="rooms" aria-labelledby="room-view-title" hidden>
+        <h2 class="visually-hidden" id="room-view-title">Chores by room</h2>
+        <div class="room-grid">
+          <article class="dashboard-card room-card">
+            <h3>Kitchen</h3>
+            <ul class="room-task-list">
+              <li><span>Unload dishwasher</span><span>Child 1</span></li>
+              <li><span>Wipe counters</span><span>Mom</span></li>
+              <li><span>Kitchen close</span><span>Dad</span></li>
+            </ul>
+          </article>
+          <article class="dashboard-card room-card">
+            <h3>Kids&rsquo; Bedroom</h3>
+            <ul class="room-task-list">
+              <li><span>Put toys away</span><span>Toddler</span></li>
+              <li><span>Reset beds</span><span>Child 2</span></li>
+            </ul>
+          </article>
+          <article class="dashboard-card room-card">
+            <h3>Laundry Area</h3>
+            <ul class="room-task-list">
+              <li><span>Start laundry</span><span>Mom</span></li>
+              <li><span>Fold clean clothes</span><span>Family</span></li>
+            </ul>
+          </article>
+        </div>
+      </section>
+      <section class="dashboard-card master-task-view" data-chore-view="all" aria-labelledby="all-tasks-title" hidden>
+        <div class="card-heading">
+          <h2 id="all-tasks-title">All Tasks</h2>
+          <span class="chore-count">6 sample tasks</span>
+        </div>
+        <ul class="master-task-list">
+          <li class="master-task-item">
+            <span class="master-task-name">Unload dishwasher</span>
+            <span>Kitchen</span>
+            <span>Child 1</span>
+            <span>Daily</span>
+          </li>
+          <li class="master-task-item">
+            <span class="master-task-name">Wipe dining table</span>
+            <span>Dining Area</span>
+            <span>Child 2</span>
+            <span>Weekdays</span>
+          </li>
+          <li class="master-task-item">
+            <span class="master-task-name">Vacuum stairs</span>
+            <span>Stairs / Hallways</span>
+            <span>Dad</span>
+            <span>Weekly</span>
+          </li>
+          <li class="master-task-item">
+            <span class="master-task-name">Clean kids&rsquo; bathroom</span>
+            <span>Kids&rsquo; Bathroom</span>
+            <span>Child 3</span>
+            <span>Weekly</span>
+          </li>
+          <li class="master-task-item">
+            <span class="master-task-name">Wash bedding</span>
+            <span>Whole House</span>
+            <span>Family</span>
+            <span>Every 2 Weeks</span>
+          </li>
+          <li class="master-task-item">
+            <span class="master-task-name">Fridge cleanout</span>
+            <span>Kitchen</span>
+            <span>Mom</span>
+            <span>Monthly</span>
+          </li>
+        </ul>
+      </section>
+    </section>
+    <section class="app-screen" id="meals-screen" data-screen="meals" hidden>
+      <header class="screen-header">
+        <p class="screen-kicker">Weekly plan</p>
+        <h1>Meals</h1>
+      </header>
+      <div class="weekly-meal-grid">
+        <article class="dashboard-card day-card">
+          <h2>Monday</h2>
+          <dl class="day-meals">
+            <div><dt>Breakfast</dt><dd>Oatmeal + fruit</dd></div>
+            <div><dt>Lunch</dt><dd>Dal + rice</dd></div>
+            <div><dt>Dinner</dt><dd>Chicken curry</dd></div>
+          </dl>
+        </article>
+        <article class="dashboard-card day-card">
+          <h2>Tuesday</h2>
+          <dl class="day-meals">
+            <div><dt>Breakfast</dt><dd>Eggs + toast</dd></div>
+            <div><dt>Lunch</dt><dd>Leftovers</dd></div>
+            <div><dt>Dinner</dt><dd>Leftovers</dd></div>
+          </dl>
+        </article>
+        <article class="dashboard-card day-card">
+          <h2>Wednesday</h2>
+          <dl class="day-meals">
+            <div><dt>Breakfast</dt><dd>Idli</dd></div>
+            <div><dt>Lunch</dt><dd>Sandwiches</dd></div>
+            <div><dt>Dinner</dt><dd>Pasta</dd></div>
+          </dl>
+        </article>
+        <article class="dashboard-card day-card">
+          <h2>Thursday</h2>
+          <dl class="day-meals">
+            <div><dt>Breakfast</dt><dd>Cereal + banana</dd></div>
+            <div><dt>Lunch</dt><dd>Pasta leftovers</dd></div>
+            <div><dt>Dinner</dt><dd>Rajma + rice</dd></div>
+          </dl>
+        </article>
+        <article class="dashboard-card day-card">
+          <h2>Friday</h2>
+          <dl class="day-meals">
+            <div><dt>Breakfast</dt><dd>Dosa</dd></div>
+            <div><dt>Lunch</dt><dd>Wraps</dd></div>
+            <div><dt>Dinner</dt><dd>Freezer meal</dd></div>
+          </dl>
+        </article>
+        <article class="dashboard-card day-card">
+          <h2>Saturday</h2>
+          <dl class="day-meals">
+            <div><dt>Breakfast</dt><dd>Pancakes + fruit</dd></div>
+            <div><dt>Lunch</dt><dd>Sandwiches</dd></div>
+            <div><dt>Dinner</dt><dd>Biryani</dd></div>
+          </dl>
+        </article>
+        <article class="dashboard-card day-card">
+          <h2>Sunday</h2>
+          <dl class="day-meals">
+            <div><dt>Breakfast</dt><dd>Eggs + toast</dd></div>
+            <div><dt>Lunch</dt><dd>Biryani leftovers</dd></div>
+            <div><dt>Dinner</dt><dd>Soup + bread</dd></div>
+          </dl>
+        </article>
+      </div>
+    </section>
+    <section class="app-screen" id="reset-screen" data-screen="reset" hidden>
+      <header class="screen-header reset-header">
+        <div>
+          <p class="screen-kicker">Weekly household reset</p>
+          <h1>Family Reset</h1>
+        </div>
+        <strong class="reset-count">6 of 13 complete</strong>
+      </header>
+      <progress class="reset-progress" value="6" max="13">6 of 13 complete</progress>
+      <div class="reset-group-grid">
+        <section class="dashboard-card reset-group profile-mom" aria-labelledby="reset-mom-title">
+          <h2 id="reset-mom-title">Mom</h2>
+          <label class="reset-task"><input type="checkbox"><span>Master bathroom</span></label>
+          <label class="reset-task"><input type="checkbox" checked><span>Fridge check</span></label>
+        </section>
+        <section class="dashboard-card reset-group profile-dad" aria-labelledby="reset-dad-title">
+          <h2 id="reset-dad-title">Dad</h2>
+          <label class="reset-task"><input type="checkbox"><span>Clean stovetop</span></label>
+          <label class="reset-task"><input type="checkbox" checked><span>Vacuum stairs</span></label>
+        </section>
+        <section class="dashboard-card reset-group profile-child-one" aria-labelledby="reset-child-title">
+          <h2 id="reset-child-title">Child 1</h2>
+          <label class="reset-task"><input type="checkbox"><span>Basement vacuum</span></label>
+          <label class="reset-task"><input type="checkbox" checked><span>Reset bedroom</span></label>
+        </section>
+        <section class="dashboard-card reset-group profile-child-two" aria-labelledby="reset-child-two-title">
+          <h2 id="reset-child-two-title">Child 2</h2>
+          <label class="reset-task"><input type="checkbox"><span>Wipe dining table</span></label>
+          <label class="reset-task"><input type="checkbox" checked><span>Put clothes away</span></label>
+        </section>
+        <section class="dashboard-card reset-group profile-child-three" aria-labelledby="reset-child-three-title">
+          <h2 id="reset-child-three-title">Child 3</h2>
+          <label class="reset-task"><input type="checkbox"><span>Vacuum dining area</span></label>
+          <label class="reset-task"><input type="checkbox" checked><span>Clear bedroom floor</span></label>
+        </section>
+        <section class="dashboard-card reset-group profile-toddler" aria-labelledby="reset-toddler-title">
+          <h2 id="reset-toddler-title">Toddler</h2>
+          <label class="reset-task"><input type="checkbox" checked><span>Put toys away</span></label>
+        </section>
+        <section class="dashboard-card reset-group profile-family" aria-labelledby="reset-family-title">
+          <h2 id="reset-family-title">Family</h2>
+          <label class="reset-task"><input type="checkbox"><span>Quick whole-house pickup</span></label>
+          <label class="reset-task"><input type="checkbox"><span>Take out recycling</span></label>
+        </section>
+      </div>
+    </section>
+    <section class="app-screen" id="more-screen" data-screen="more" hidden>
+      <header class="screen-header">
+        <p class="screen-kicker">Additional options</p>
+        <h1>More</h1>
+      </header>
+      <section class="dashboard-card more-placeholder" aria-labelledby="more-placeholder-title">
+        <h2 id="more-placeholder-title">More options are coming later</h2>
+        <p>Parent Mode and family settings will be added in their planned implementation phases.</p>
+      </section>
+    </section>
   </main>
   <script src="js/app.js"></script>
 </body>
