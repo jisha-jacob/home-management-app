@@ -3,19 +3,124 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Home Management App — Phase 0</title>
+  <title>Home Management App</title>
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-  <header class="site-header">
-    <h1>Home Management App</h1>
-    <p>Phase 0 — Project scaffold</p>
-  </header>
   <main id="app">
-    <p>This is a minimal static scaffold for Phase 0. Open this file locally to verify.</p>
-    <ul>
-      <li><a href="#" id="open-dashboard">Open dashboard placeholder</a></li>
-    </ul>
+    <header class="dashboard-header">
+      <time class="dashboard-date" id="today-date">TODAY</time>
+    </header>
+    <nav class="profile-list" aria-label="Choose a family profile">
+      <button class="profile-button profile-family" type="button" aria-pressed="true">Family</button>
+      <button class="profile-button profile-mom" type="button" aria-pressed="false">Mom</button>
+      <button class="profile-button profile-dad" type="button" aria-pressed="false">Dad</button>
+      <button class="profile-button profile-child-one" type="button" aria-pressed="false">Child 1</button>
+      <button class="profile-button profile-child-two" type="button" aria-pressed="false">Child 2</button>
+      <button class="profile-button profile-child-three" type="button" aria-pressed="false">Child 3</button>
+      <button class="profile-button profile-toddler" type="button" aria-pressed="false">Toddler</button>
+    </nav>
+    <aside class="household-reminder" aria-labelledby="reminder-title">
+      <h2 id="reminder-title">Household reminder</h2>
+      <p>Laundry tonight</p>
+    </aside>
+    <div class="dashboard-grid">
+      <div class="calendar-column">
+        <section class="dashboard-card calendar-card" aria-labelledby="calendar-title">
+          <div class="card-heading">
+            <h2 id="calendar-title">Today&rsquo;s Calendar</h2>
+            <span class="event-count">2 events</span>
+          </div>
+          <ol class="event-list">
+            <li class="event-item">
+              <time class="event-time" datetime="09:00">9:00 AM</time>
+              <div>
+                <p class="event-name">Mom&rsquo;s course time</p>
+                <p class="event-owner">Mom</p>
+              </div>
+            </li>
+            <li class="event-item">
+              <time class="event-time" datetime="15:15">3:15 PM</time>
+              <div>
+                <p class="event-name">School pickup</p>
+                <p class="event-owner">Family</p>
+              </div>
+            </li>
+          </ol>
+        </section>
+        <section class="upcoming-preview" aria-labelledby="upcoming-title">
+          <h2 id="upcoming-title">Coming up</h2>
+          <p><strong>Tomorrow:</strong> Dentist <span aria-hidden="true">&mdash;</span> <time datetime="10:30">10:30 AM</time></p>
+        </section>
+      </div>
+      <section class="dashboard-card chores-card" aria-labelledby="chores-title">
+      <div class="card-heading">
+        <h2 id="chores-title">Today&rsquo;s Chores</h2>
+        <span class="chore-count">1 of 4 done</span>
+      </div>
+      <ul class="chore-list">
+        <li class="chore-item">
+          <span class="person-indicator profile-child-one" aria-hidden="true"></span>
+          <label class="chore-label">
+            <input class="chore-checkbox" type="checkbox" checked>
+            <span class="chore-details">
+              <span class="chore-owner">Child 1</span>
+              <span class="chore-name">Unload dishwasher</span>
+            </span>
+          </label>
+        </li>
+        <li class="chore-item">
+          <span class="person-indicator profile-child-two" aria-hidden="true"></span>
+          <label class="chore-label">
+            <input class="chore-checkbox" type="checkbox">
+            <span class="chore-details">
+              <span class="chore-owner">Child 2</span>
+              <span class="chore-name">Wipe dining table</span>
+            </span>
+          </label>
+        </li>
+        <li class="chore-item">
+          <span class="person-indicator profile-toddler" aria-hidden="true"></span>
+          <label class="chore-label">
+            <input class="chore-checkbox" type="checkbox">
+            <span class="chore-details">
+              <span class="chore-owner">Toddler</span>
+              <span class="chore-name">Put toys away</span>
+            </span>
+          </label>
+        </li>
+        <li class="chore-item">
+          <span class="person-indicator profile-dad" aria-hidden="true"></span>
+          <label class="chore-label">
+            <input class="chore-checkbox" type="checkbox">
+            <span class="chore-details">
+              <span class="chore-owner">Dad</span>
+              <span class="chore-name">Kitchen close</span>
+            </span>
+          </label>
+        </li>
+      </ul>
+      </section>
+      <section class="dashboard-card meals-card" aria-labelledby="meals-title">
+      <div class="card-heading">
+        <h2 id="meals-title">Today&rsquo;s Meals</h2>
+      </div>
+      <dl class="meal-list">
+        <div class="meal-item">
+          <dt>Breakfast</dt>
+          <dd>Eggs + toast + fruit</dd>
+        </div>
+        <div class="meal-item">
+          <dt>Lunch</dt>
+          <dd>Leftover dal + rice</dd>
+        </div>
+        <div class="meal-item">
+          <dt>Dinner</dt>
+          <dd>Chicken curry + rice</dd>
+        </div>
+      </dl>
+      </section>
+    </div>
   </main>
   <script src="js/app.js"></script>
 </body>
