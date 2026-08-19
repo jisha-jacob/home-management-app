@@ -23,13 +23,13 @@
       <time class="dashboard-date" id="today-date">TODAY</time>
     </header>
     <nav class="profile-list" aria-label="Choose a family profile">
-      <button class="profile-button profile-family" type="button" aria-pressed="true">Family</button>
-      <button class="profile-button profile-mom" type="button" aria-pressed="false">Mom</button>
-      <button class="profile-button profile-dad" type="button" aria-pressed="false">Dad</button>
-      <button class="profile-button profile-child-one" type="button" aria-pressed="false">Child 1</button>
-      <button class="profile-button profile-child-two" type="button" aria-pressed="false">Child 2</button>
-      <button class="profile-button profile-child-three" type="button" aria-pressed="false">Child 3</button>
-      <button class="profile-button profile-toddler" type="button" aria-pressed="false">Toddler</button>
+      <button class="profile-button profile-family" type="button" data-profile-target="family" aria-pressed="true">Family</button>
+      <button class="profile-button profile-mom" type="button" data-profile-target="mom" aria-pressed="false">Mom</button>
+      <button class="profile-button profile-dad" type="button" data-profile-target="dad" aria-pressed="false">Dad</button>
+      <button class="profile-button profile-child-one" type="button" data-profile-target="child-1" aria-pressed="false">Child 1</button>
+      <button class="profile-button profile-child-two" type="button" data-profile-target="child-2" aria-pressed="false">Child 2</button>
+      <button class="profile-button profile-child-three" type="button" data-profile-target="child-3" aria-pressed="false">Child 3</button>
+      <button class="profile-button profile-toddler" type="button" data-profile-target="toddler" aria-pressed="false">Toddler</button>
     </nav>
     <aside class="household-reminder" aria-labelledby="reminder-title">
       <h2 id="reminder-title">Household reminder</h2>
@@ -67,13 +67,13 @@
       <section class="dashboard-card chores-card" aria-labelledby="chores-title">
       <div class="card-heading">
         <h2 id="chores-title">Today&rsquo;s Chores</h2>
-        <span class="chore-count">1 of 6 done</span>
+        <span class="chore-count" id="home-chore-count">0 of 6 done</span>
       </div>
-      <ul class="chore-list">
+      <ul class="chore-list" id="home-chore-list">
         <li class="chore-item">
           <span class="person-indicator profile-child-one" aria-hidden="true"></span>
           <label class="chore-label">
-            <input class="chore-checkbox" type="checkbox" checked>
+            <input class="chore-checkbox" type="checkbox">
             <span class="chore-details">
               <span class="chore-owner">Child 1</span>
               <span class="chore-name">Unload dishwasher</span>
@@ -166,9 +166,9 @@
       <section class="dashboard-card chore-view" data-chore-view="today" aria-labelledby="chore-view-title">
         <div class="card-heading">
           <h2 id="chore-view-title">Today</h2>
-          <span class="chore-count">6 chores due</span>
+          <span class="chore-count" id="today-chore-count">6 chores due</span>
         </div>
-        <ul class="chore-list">
+        <ul class="chore-list" id="today-chore-list">
           <li class="chore-item">
             <span class="person-indicator profile-child-one" aria-hidden="true"></span>
             <label class="chore-label">
@@ -409,7 +409,7 @@
         <section class="dashboard-card reset-group profile-family" aria-labelledby="reset-family-title">
           <h2 id="reset-family-title">Family</h2>
           <label class="reset-task"><input type="checkbox"><span>Quick whole-house pickup</span></label>
-          <label class="reset-task"><input type="checkbox"><span>Take out recycling</span></label>
+          <label class="reset-task" data-family-reset-chore-id="take-out-recycling"><input type="checkbox"><span>Take out recycling</span></label>
         </section>
       </div>
     </section>
@@ -424,6 +424,7 @@
       </section>
     </section>
   </main>
+  <script src="data/sample-data.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
