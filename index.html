@@ -4,10 +4,18 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Home Management App</title>
-  <link rel="stylesheet" href="css/styles.css?v=20260819-2">
+  <link rel="stylesheet" href="css/styles.css?v=20260819-4">
 </head>
 <body>
-  <nav class="app-navigation" aria-label="Primary navigation">
+  <section class="auth-screen" id="auth-screen" aria-labelledby="auth-title">
+    <div class="dashboard-card auth-card">
+      <p class="screen-kicker">Private family app</p>
+      <h1 id="auth-title">Home Management App</h1>
+      <p id="auth-message">Checking sign-in…</p>
+      <button class="primary-action" id="sign-in-button" type="button">Sign in with Google</button>
+    </div>
+  </section>
+  <nav class="app-navigation" aria-label="Primary navigation" hidden>
     <button class="navigation-button" type="button" data-screen-target="home" aria-current="page">Home</button>
     <button class="navigation-button" type="button" data-screen-target="chores">Chores</button>
     <button class="navigation-button" type="button" data-screen-target="meals">Meals</button>
@@ -17,7 +25,7 @@
     </button>
     <button class="navigation-button" type="button" data-screen-target="more">More</button>
   </nav>
-  <main id="app">
+  <main id="app" hidden>
     <section class="app-screen" id="home-screen" data-screen="home">
     <header class="dashboard-header">
       <time class="dashboard-date" id="today-date">TODAY</time>
@@ -139,15 +147,15 @@
       <dl class="meal-list">
         <div class="meal-item">
           <dt>Breakfast</dt>
-          <dd>Eggs + toast + fruit</dd>
+          <dd id="today-breakfast">Eggs + toast + fruit</dd>
         </div>
         <div class="meal-item">
           <dt>Lunch</dt>
-          <dd>Leftover dal + rice</dd>
+          <dd id="today-lunch">Leftover dal + rice</dd>
         </div>
         <div class="meal-item">
           <dt>Dinner</dt>
-          <dd>Chicken curry + rice</dd>
+          <dd id="today-dinner">Chicken curry + rice</dd>
         </div>
       </dl>
       </section>
@@ -233,74 +241,14 @@
       </section>
       <section class="room-view" data-chore-view="rooms" aria-labelledby="room-view-title" hidden>
         <h2 class="visually-hidden" id="room-view-title">Chores by room</h2>
-        <div class="room-grid">
-          <article class="dashboard-card room-card">
-            <h3>Kitchen</h3>
-            <ul class="room-task-list">
-              <li><span>Unload dishwasher</span><span>Child 1</span></li>
-              <li><span>Wipe counters</span><span>Mom</span></li>
-              <li><span>Kitchen close</span><span>Dad</span></li>
-            </ul>
-          </article>
-          <article class="dashboard-card room-card">
-            <h3>Kids&rsquo; Bedroom</h3>
-            <ul class="room-task-list">
-              <li><span>Put toys away</span><span>Toddler</span></li>
-              <li><span>Reset beds</span><span>Child 2</span></li>
-            </ul>
-          </article>
-          <article class="dashboard-card room-card">
-            <h3>Laundry Area</h3>
-            <ul class="room-task-list">
-              <li><span>Start laundry</span><span>Mom</span></li>
-              <li><span>Fold clean clothes</span><span>Family</span></li>
-            </ul>
-          </article>
-        </div>
+        <div class="room-grid" id="room-grid"></div>
       </section>
       <section class="dashboard-card master-task-view" data-chore-view="all" aria-labelledby="all-tasks-title" hidden>
         <div class="card-heading">
           <h2 id="all-tasks-title">All Tasks</h2>
-          <span class="chore-count">6 sample tasks</span>
+          <span class="chore-count" id="master-task-count">Open to load tasks</span>
         </div>
-        <ul class="master-task-list">
-          <li class="master-task-item">
-            <span class="master-task-name">Unload dishwasher</span>
-            <span>Kitchen</span>
-            <span>Child 1</span>
-            <span>Daily</span>
-          </li>
-          <li class="master-task-item">
-            <span class="master-task-name">Wipe dining table</span>
-            <span>Dining Area</span>
-            <span>Child 2</span>
-            <span>Weekdays</span>
-          </li>
-          <li class="master-task-item">
-            <span class="master-task-name">Vacuum stairs</span>
-            <span>Stairs / Hallways</span>
-            <span>Dad</span>
-            <span>Weekly</span>
-          </li>
-          <li class="master-task-item">
-            <span class="master-task-name">Clean kids&rsquo; bathroom</span>
-            <span>Kids&rsquo; Bathroom</span>
-            <span>Child 3</span>
-            <span>Weekly</span>
-          </li>
-          <li class="master-task-item">
-            <span class="master-task-name">Wash bedding</span>
-            <span>Whole House</span>
-            <span>Family</span>
-            <span>Every 2 Weeks</span>
-          </li>
-          <li class="master-task-item">
-            <span class="master-task-name">Fridge cleanout</span>
-            <span>Kitchen</span>
-            <span>Mom</span>
-            <span>Monthly</span>
-          </li>
-        </ul>
+        <ul class="master-task-list" id="master-task-list"></ul>
       </section>
     </section>
     <section class="app-screen" id="meals-screen" data-screen="meals" hidden>
@@ -421,10 +369,12 @@
       <section class="dashboard-card more-placeholder" aria-labelledby="more-placeholder-title">
         <h2 id="more-placeholder-title">More options are coming later</h2>
         <p>Parent Mode and family settings will be added in their planned implementation phases.</p>
+        <button class="secondary-action" id="sign-out-button" type="button">Sign out</button>
       </section>
     </section>
   </main>
   <script src="data/sample-data.js"></script>
-  <script src="js/app.js"></script>
+  <script src="js/app.js?v=20260819-9"></script>
+  <script type="module" src="js/auth-loader.js?v=20260819-18"></script>
 </body>
 </html>

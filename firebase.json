@@ -1,12 +1,19 @@
 {
+  "firestore": {
+    "rules": "firestore.rules"
+  },
   "hosting": {
     "public": ".",
     "ignore": [
       "firebase.json",
       ".firebaserc",
       ".firebase/**",
+      ".chrome-test/**",
+      ".edge-test/**",
       ".git/**",
       ".gitignore",
+      "firestore.rules",
+      "seed/**",
       "**/.*",
       "docs/**",
       "README.md"

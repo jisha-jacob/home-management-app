@@ -186,9 +186,11 @@ Development sequence:
 1. Static local prototype
 2. Responsive testing
 3. Firebase Hosting
-4. Firestore
-5. Authentication
-6. Calendar integration
+4. Firestore data foundation and seed data
+5. Minimum Firebase Authentication required for secure Firestore access
+6. Secure Firestore-backed persistence and synchronization
+7. Parent Mode and authorization controls
+8. Calendar integration
 
 This prevents infrastructure from slowing down UI design.
 
@@ -226,6 +228,11 @@ Mom and Dad have equal administrative permissions.
 Preferred eventual authentication:
 
 - Google sign-in or Firebase-supported parent authentication
+
+Authentication must be initialized before the browser app is allowed to read
+or write private Firestore data. Phase 5 therefore includes the minimum parent
+sign-in gate needed for secure persistence. Full Parent Mode authorization,
+editing controls, and the convenience PIN remain in Phase 6.
 
 ### Kids
 Children do not need separate login credentials.
@@ -456,7 +463,42 @@ Chores screen should support:
 Only chores due today.
 
 ### By Room
-View all chores grouped by room.
+View all active routine chores grouped by room.
+
+This is a planning view rather than a second copy of Today's list. Each chore
+must show:
+
+- Chore name
+- Normal owner
+- Calculated next-due timing
+- Recurrence as supporting context
+
+Use calm, human-readable next-due labels:
+
+- `Today` when currently due
+- `Tomorrow` when next due the following day
+- A weekday name, such as `Friday`, when next due within seven days
+- A short date, such as `Sep 1`, when due later
+
+Today's temporary overrides must be visible in this view. A reassigned chore
+should identify today's temporary owner, while a skipped chore should say that
+it is skipped today and show its next due date.
+
+Examples:
+
+```text
+Unload dishwasher
+Child 1 · Today · Daily
+
+Clean out fridge
+Mom · Sep 1 · Monthly
+
+Wipe dining table
+Child 2 · Skipped today · Tomorrow · Daily
+```
+
+Do not add editing controls to By Room before the planned parent editing
+phases.
 
 ### All Tasks
 Parent-focused master task list.
@@ -1049,6 +1091,12 @@ Use:
 
 Only authorized parents/family should access household data.
 
+Do not use open Firestore "test mode" rules to bridge the gap between database
+setup and authentication. Seed operations may use narrowly scoped temporary
+create-only rules, but the closed rules must be restored immediately afterward.
+Browser reads and writes begin only after the minimum authentication gate and
+authenticated Firestore rules are in place.
+
 ## 19.2 Parent PIN
 The PIN only prevents accidental editing from the shared family interface.
 
@@ -1301,7 +1349,18 @@ Put the static app online at no cost.
 ## Phase 5 — Firestore Data
 
 ### Goal
-Replace sample data with persistent household data.
+Replace sample data with persistent household data without exposing private
+household records to unauthenticated browsers.
+
+### Security dependency
+
+Firestore data setup happens before browser integration. Before the frontend
+reads or writes Firestore, add the minimum Firebase Authentication sign-in gate
+for approved parent accounts and deploy authenticated security rules.
+
+This is an infrastructure prerequisite for Phase 5 persistence, not the full
+Parent Mode feature set. Do not add the Parent PIN, chore-management forms, or
+other Phase 6 editing controls here.
 
 ### Build collections:
 
@@ -1321,30 +1380,54 @@ Import:
 - Master room-by-room cleaning task list
 - Initial meal examples
 
+Imported master chores that do not yet have an owner must be stored as:
+
+- `defaultOwner: "unassigned"`
+- `active: false`
+- Their suggested frequency from the master checklist
+
+These records do not appear in Today's chores until a parent configures and
+activates them in Phase 7.
+
+### Secure frontend connection
+
+- Enable the approved Firebase Authentication provider
+- Allow only approved parent accounts to sign in
+- Require authentication in Firestore security rules
+- Replace sample reads and local-only writes with Firestore operations
+- Keep children credential-free by using a parent-authenticated shared device
+- Never allow unauthenticated public Firestore reads or writes
+
 ### Acceptance Check
 
+- Unauthenticated browsers cannot access household data
+- An approved parent can sign in
 - Refresh does not lose changes
 - Multiple devices see the same data
 - Chore completion syncs
-- Meal edits persist
+- Meal data loads from Firestore and syncs across devices
 - Changes appear across phone/laptop
 
 ---
 
-## Phase 6 — Parent Authentication & Parent Mode
+## Phase 6 — Parent Authorization & Parent Mode
 
 ### Goal
-Protect household editing.
+Protect household editing and separate parent capabilities from the
+child-friendly shared interface.
 
 ### Build
 
-- Firebase Authentication
-- Mom account
-- Dad account
-- Equal permissions
+- Recognize Mom and Dad as approved parent accounts
+- Give Mom and Dad equal authorization
 - Shared-family viewing
 - Parent Mode
 - 4-digit PIN convenience lock
+- Parent-only editing controls
+
+Phase 6 builds on the minimum Firebase sign-in gate introduced in Phase 5. It
+does not replace Firestore security rules, and the PIN is not used as the real
+security boundary.
 
 ### Acceptance Check
 

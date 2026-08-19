@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', function () {
   var currentDate = new Date();
   var completions = [];
   var selectedProfile = 'family';
+  var masterChoresLoaded = false;
 
   function formatDateKey(date) {
     var month = String(date.getMonth() + 1).padStart(2, '0');
@@ -54,6 +55,44 @@ document.addEventListener('DOMContentLoaded', function () {
     return false;
   }
 
+  function findNextDueDate(chore, startDate) {
+    var candidate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+
+    for (var daysAhead = 0; daysAhead <= 370; daysAhead += 1) {
+      if (isChoreDueOnDate(chore, candidate)) return candidate;
+      candidate.setDate(candidate.getDate() + 1);
+    }
+
+    return null;
+  }
+
+  function formatNextDueDate(date) {
+    if (!date) return 'No upcoming date';
+
+    var daysAhead = getCalendarDayNumber(date) - getCalendarDayNumber(currentDate);
+
+    if (daysAhead === 0) return 'Today';
+    if (daysAhead === 1) return 'Tomorrow';
+    if (daysAhead <= 7) {
+      return new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(date);
+    }
+
+    return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(date);
+  }
+
+  function formatFrequency(frequency) {
+    var labels = {
+      daily: 'Daily',
+      weekdays: 'Weekdays',
+      weekends: 'Weekends',
+      weekly: 'Weekly',
+      'every-2-weeks': 'Every 2 weeks',
+      monthly: 'Monthly'
+    };
+
+    return labels[frequency] || frequency;
+  }
+
   function isCompletedOnDate(choreId, date) {
     var dateKey = formatDateKey(date);
 
@@ -76,8 +115,9 @@ document.addEventListener('DOMContentLoaded', function () {
     return override && override.assignedTo ? override.assignedTo : chore.defaultOwner;
   }
 
-  function setChoreCompletion(choreId, completed) {
+  async function setChoreCompletion(choreId, completed) {
     var dateKey = formatDateKey(currentDate);
+    var previousCompletions = completions.slice();
 
     completions = completions.filter(function (completion) {
       return completion.choreId !== choreId || completion.date !== dateKey;
@@ -92,6 +132,14 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     renderTodayChores();
+
+    try {
+      await window.homeManagementData.saveChoreCompletion(choreId, dateKey, completed, selectedProfile);
+    } catch (error) {
+      completions = previousCompletions;
+      renderTodayChores();
+      window.alert('The chore could not be saved. Please try again.');
+    }
   }
 
   function createChoreItem(chore, ownerId, members) {
@@ -174,6 +222,63 @@ document.addEventListener('DOMContentLoaded', function () {
     todayCount.textContent = openProfileChores.length + ' chores due';
   }
 
+  function renderChoresByRoom() {
+    var sampleData = window.homeManagementSampleData;
+    var roomGrid = document.getElementById('room-grid');
+    var choresByRoom = {};
+
+    sampleData.chores.forEach(function (chore) {
+      if (!choresByRoom[chore.room]) choresByRoom[chore.room] = [];
+      choresByRoom[chore.room].push(chore);
+    });
+
+    roomGrid.textContent = '';
+    Object.keys(choresByRoom).sort().forEach(function (room) {
+      var card = document.createElement('article');
+      var heading = document.createElement('h3');
+      var list = document.createElement('ul');
+
+      card.className = 'dashboard-card room-card';
+      heading.textContent = room;
+      list.className = 'room-task-list';
+
+      choresByRoom[room].sort(function (firstChore, secondChore) {
+        return firstChore.name.localeCompare(secondChore.name);
+      }).forEach(function (chore) {
+        var item = document.createElement('li');
+        var choreName = document.createElement('span');
+        var ownerName = document.createElement('span');
+        var owner = sampleData.members[chore.defaultOwner];
+        var override = getOverrideForDate(chore.id, currentDate, sampleData.overrides);
+        var dueToday = isChoreDueOnDate(chore, currentDate);
+        var nextStartDate = currentDate;
+        var timingParts = [owner ? owner.name : 'Unassigned'];
+
+        if (override && override.skipped && dueToday) {
+          nextStartDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() + 1);
+          timingParts.push('Skipped today');
+        } else if (override && override.assignedTo && dueToday) {
+          var temporaryOwner = sampleData.members[override.assignedTo];
+          timingParts[0] += ' normally';
+          timingParts.push((temporaryOwner ? temporaryOwner.name : 'Unassigned') + ' today');
+        }
+
+        timingParts.push(formatNextDueDate(findNextDueDate(chore, nextStartDate)));
+        timingParts.push(formatFrequency(chore.frequency));
+
+        choreName.textContent = chore.name;
+        ownerName.textContent = timingParts.join(' · ');
+        item.appendChild(choreName);
+        item.appendChild(ownerName);
+        list.appendChild(item);
+      });
+
+      card.appendChild(heading);
+      card.appendChild(list);
+      roomGrid.appendChild(card);
+    });
+  }
+
   renderTodayChores();
 
   function applyFamilyResetFlags() {
@@ -246,7 +351,7 @@ document.addEventListener('DOMContentLoaded', function () {
   var choreViews = document.querySelectorAll('[data-chore-view]');
 
   choreViewButtons.forEach(function (button) {
-    button.addEventListener('click', function () {
+    button.addEventListener('click', async function () {
       var target = button.getAttribute('data-chore-view-target');
 
       choreViews.forEach(function (view) {
@@ -256,6 +361,114 @@ document.addEventListener('DOMContentLoaded', function () {
       choreViewButtons.forEach(function (viewButton) {
         viewButton.setAttribute('aria-pressed', viewButton === button ? 'true' : 'false');
       });
+
+      if (target === 'all' && !masterChoresLoaded) {
+        document.getElementById('master-task-count').textContent = 'Loading tasksâ€¦';
+
+        try {
+          await window.homeManagementData.loadAllChores();
+          masterChoresLoaded = true;
+        } catch (error) {
+          document.getElementById('master-task-count').textContent = 'Tasks could not be loaded';
+        }
+      }
     });
   });
+
+  window.homeManagementApp = {
+    setMembers: function (members) {
+      var sampleData = window.homeManagementSampleData;
+
+      Object.keys(members).forEach(function (memberId) {
+        var existingMember = sampleData.members[memberId] || {};
+        sampleData.members[memberId] = Object.assign({}, existingMember, members[memberId]);
+
+        var profileButton = document.querySelector('[data-profile-target="' + memberId + '"]');
+        if (profileButton) profileButton.textContent = members[memberId].name;
+      });
+
+      renderTodayChores();
+    },
+    setChores: function (chores) {
+      var sampleData = window.homeManagementSampleData;
+      var sampleOrder = sampleData.chores.map(function (chore) {
+        return chore.id;
+      });
+
+      chores.sort(function (firstChore, secondChore) {
+        var firstPosition = sampleOrder.indexOf(firstChore.id);
+        var secondPosition = sampleOrder.indexOf(secondChore.id);
+
+        if (firstPosition === -1) firstPosition = sampleOrder.length;
+        if (secondPosition === -1) secondPosition = sampleOrder.length;
+
+        return firstPosition - secondPosition || firstChore.name.localeCompare(secondChore.name);
+      });
+
+      sampleData.chores = chores;
+      renderTodayChores();
+      renderChoresByRoom();
+      applyFamilyResetFlags();
+    },
+    setCompletions: function (savedCompletions) {
+      completions = savedCompletions;
+      renderTodayChores();
+    },
+    setOverrides: function (overrides) {
+      window.homeManagementSampleData.overrides = overrides;
+      renderTodayChores();
+      renderChoresByRoom();
+    },
+    setTodayMeals: function (meals) {
+      document.getElementById('today-breakfast').textContent = meals.breakfast;
+      document.getElementById('today-lunch').textContent = meals.lunch;
+      document.getElementById('today-dinner').textContent = meals.dinner;
+
+      var dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      var todayName = dayNames[new Date().getDay()];
+      var dayCards = document.querySelectorAll('.day-card');
+
+      for (var index = 0; index < dayCards.length; index += 1) {
+        if (dayCards[index].querySelector('h2').textContent !== todayName) continue;
+
+        var mealValues = dayCards[index].querySelectorAll('dd');
+        mealValues[0].textContent = meals.breakfast;
+        mealValues[1].textContent = meals.lunch;
+        mealValues[2].textContent = meals.dinner;
+        break;
+      }
+    },
+    setMasterChores: function (chores) {
+      var members = window.homeManagementSampleData.members;
+      var list = document.getElementById('master-task-list');
+
+      chores.sort(function (firstChore, secondChore) {
+        return firstChore.room.localeCompare(secondChore.room)
+          || firstChore.name.localeCompare(secondChore.name);
+      });
+
+      list.textContent = '';
+      chores.forEach(function (chore) {
+        var item = document.createElement('li');
+        var owner = members[chore.defaultOwner];
+        var values = [
+          chore.name,
+          chore.room,
+          owner ? owner.name : 'Unassigned',
+          chore.frequency.replaceAll('-', ' ')
+        ];
+
+        item.className = 'master-task-item';
+        values.forEach(function (value, index) {
+          var detail = document.createElement('span');
+          detail.textContent = value;
+          if (index === 0) detail.className = 'master-task-name';
+          item.appendChild(detail);
+        });
+        list.appendChild(item);
+      });
+
+      document.getElementById('master-task-count').textContent = chores.length + ' tasks';
+    }
+  };
 });

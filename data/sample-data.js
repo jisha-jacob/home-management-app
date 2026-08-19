@@ -1,11 +1,11 @@
 window.homeManagementSampleData = {
   members: {
-    mom: { name: 'Mom', colorClass: 'profile-mom' },
-    dad: { name: 'Dad', colorClass: 'profile-dad' },
-    'child-1': { name: 'Child 1', colorClass: 'profile-child-one' },
-    'child-2': { name: 'Child 2', colorClass: 'profile-child-two' },
-    'child-3': { name: 'Child 3', colorClass: 'profile-child-three' },
-    toddler: { name: 'Toddler', colorClass: 'profile-toddler' }
+    mom: { name: 'Mom', role: 'parent', color: '#f4d9e2', colorClass: 'profile-mom', displayOrder: 1, active: true },
+    dad: { name: 'Dad', role: 'parent', color: '#d6e5f3', colorClass: 'profile-dad', displayOrder: 2, active: true },
+    'child-1': { name: 'Child 1', role: 'child', color: '#f5dfbb', colorClass: 'profile-child-one', displayOrder: 3, active: true },
+    'child-2': { name: 'Child 2', role: 'child', color: '#dcd8f2', colorClass: 'profile-child-two', displayOrder: 4, active: true },
+    'child-3': { name: 'Child 3', role: 'child', color: '#d5eadb', colorClass: 'profile-child-three', displayOrder: 5, active: true },
+    toddler: { name: 'Toddler', role: 'child', color: '#f4e6ae', colorClass: 'profile-toddler', displayOrder: 6, active: true }
   },
   overrides: [
     {

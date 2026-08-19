@@ -1,2 +1,4 @@
 .firebase/
 firebase-debug.log
+.chrome-test/
+.edge-test/

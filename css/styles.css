@@ -7,6 +7,10 @@
   box-sizing: border-box;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 html,
 body {
   min-height: 100%;
@@ -24,6 +28,47 @@ main {
   width: 100%;
   max-width: 1120px;
   margin: 0 auto;
+}
+
+.auth-screen {
+  min-height: calc(100vh - 48px);
+  display: grid;
+  place-items: center;
+}
+
+.auth-card {
+  width: min(100%, 440px);
+  margin: 0;
+  text-align: center;
+}
+
+.auth-card h1 {
+  margin: 8px 0 12px;
+}
+
+.auth-card p {
+  color: #66736c;
+}
+
+.primary-action,
+.secondary-action {
+  min-height: 48px;
+  border: 0;
+  border-radius: 12px;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  padding: 12px 18px;
+}
+
+.primary-action {
+  background: #27332d;
+  color: #ffffff;
+}
+
+.secondary-action {
+  background: #e4ece7;
+  color: #27332d;
 }
 
 .app-navigation {
@@ -171,9 +216,10 @@ main {
 }
 
 .room-task-list li span:last-child {
-  flex: 0 0 auto;
+  flex: 0 1 62%;
   color: #66736c;
   font-size: 0.9rem;
+  text-align: right;
 }
 
 .master-task-list {
