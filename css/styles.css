@@ -670,6 +670,56 @@ main {
   font-weight: 650;
 }
 
+.parent-mode-card {
+  max-width: 560px;
+}
+
+.parent-tools-card {
+  max-width: 560px;
+  margin-top: 24px;
+}
+
+.signed-in-parent {
+  color: #66736c;
+  font-weight: 650;
+}
+
+.parent-pin-form {
+  display: grid;
+  gap: 16px;
+  margin: 20px 0;
+}
+
+.parent-pin-form[hidden] {
+  display: none;
+}
+
+.parent-pin-form label {
+  display: grid;
+  gap: 8px;
+  color: #66736c;
+  font-size: 0.9rem;
+  font-weight: 650;
+}
+
+.parent-pin-form input {
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid #aeb8b2;
+  border-radius: 12px;
+  padding: 10px 12px;
+  color: #22332b;
+  background: #ffffff;
+  font: inherit;
+  font-size: 1.1rem;
+  letter-spacing: 0.35em;
+}
+
+.form-status {
+  min-height: 24px;
+  color: #66736c;
+}
+
 @media (min-width: 760px) {
   body {
     padding: 24px;

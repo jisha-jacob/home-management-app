@@ -2,6 +2,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   getDocs,
   onSnapshot,
   orderBy,
@@ -19,6 +20,15 @@ function formatDateKey(date) {
   const day = String(date.getDate()).padStart(2, '0');
 
   return date.getFullYear() + '-' + month + '-' + day;
+}
+
+async function hashPin(pin) {
+  const bytes = new TextEncoder().encode(pin);
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+
+  return Array.from(new Uint8Array(digest)).map(function (value) {
+    return value.toString(16).padStart(2, '0');
+  }).join('');
 }
 
 window.homeManagementData = {
@@ -73,6 +83,27 @@ export async function loadHouseholdMembers() {
   });
 
   window.homeManagementApp.setMembers(members);
+}
+
+export async function loadParentModeSettings() {
+  const settingsDocument = await getDoc(doc(db, 'settings', 'parentMode'));
+  const isConfigured = settingsDocument.exists() && Boolean(settingsDocument.data().pinHash);
+
+  window.homeManagementApp.setParentPinConfigured(isConfigured);
+}
+
+export async function saveParentPin(pin) {
+  await setDoc(doc(db, 'settings', 'parentMode'), {
+    pinHash: await hashPin(pin)
+  }, { merge: true });
+}
+
+export async function verifyParentPin(pin) {
+  const settingsDocument = await getDoc(doc(db, 'settings', 'parentMode'));
+
+  if (!settingsDocument.exists() || !settingsDocument.data().pinHash) return false;
+
+  return settingsDocument.data().pinHash === await hashPin(pin);
 }
 
 export async function loadActiveChores() {

@@ -366,15 +366,52 @@
         <p class="screen-kicker">Additional options</p>
         <h1>More</h1>
       </header>
-      <section class="dashboard-card more-placeholder" aria-labelledby="more-placeholder-title">
-        <h2 id="more-placeholder-title">More options are coming later</h2>
-        <p>Parent Mode and family settings will be added in their planned implementation phases.</p>
+      <section class="dashboard-card parent-mode-card" aria-labelledby="parent-mode-title">
+        <h2 id="parent-mode-title">Parent Mode</h2>
+        <p class="signed-in-parent" id="signed-in-parent"></p>
+        <p id="parent-pin-description">Create a 4-digit PIN to prevent accidental changes by children.</p>
+        <form class="parent-pin-form" id="parent-pin-form">
+          <label>
+            New PIN
+            <input id="parent-pin" type="password" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="new-password" required>
+          </label>
+          <label>
+            Confirm PIN
+            <input id="parent-pin-confirm" type="password" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="new-password" required>
+          </label>
+          <button class="primary-action" id="save-parent-pin-button" type="submit">Create Parent PIN</button>
+        </form>
+        <form class="parent-pin-form" id="parent-pin-unlock-form" hidden>
+          <label>
+            Parent PIN
+            <input id="parent-pin-unlock" type="password" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="current-password" required>
+          </label>
+          <button class="primary-action" id="unlock-parent-mode-button" type="submit">Enter Parent Mode</button>
+        </form>
+        <p class="form-status" id="parent-pin-status" role="status"></p>
+        <button class="secondary-action" id="lock-parent-mode-button" type="button" hidden>Lock Parent Mode</button>
         <button class="secondary-action" id="sign-out-button" type="button">Sign out</button>
+      </section>
+      <section class="dashboard-card parent-tools-card" id="parent-tools" aria-labelledby="parent-tools-title" hidden>
+        <h2 id="parent-tools-title">Parent Tools</h2>
+        <p>These controls are available only while Parent Mode is unlocked.</p>
+        <form class="parent-pin-form" id="change-parent-pin-form">
+          <label>
+            New PIN
+            <input id="new-parent-pin" type="password" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="new-password" required>
+          </label>
+          <label>
+            Confirm new PIN
+            <input id="new-parent-pin-confirm" type="password" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="new-password" required>
+          </label>
+          <button class="primary-action" id="change-parent-pin-button" type="submit">Change Parent PIN</button>
+        </form>
+        <p class="form-status" id="change-parent-pin-status" role="status"></p>
       </section>
     </section>
   </main>
   <script src="data/sample-data.js"></script>
-  <script src="js/app.js?v=20260819-9"></script>
-  <script type="module" src="js/auth-loader.js?v=20260819-18"></script>
+  <script src="js/app.js?v=20260819-13"></script>
+  <script type="module" src="js/auth-loader.js?v=20260819-22"></script>
 </body>
 </html>

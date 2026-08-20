@@ -438,6 +438,48 @@ document.addEventListener('DOMContentLoaded', function () {
         break;
       }
     },
+    setParentPinConfigured: function (isConfigured) {
+      var setupForm = document.getElementById('parent-pin-form');
+      var unlockForm = document.getElementById('parent-pin-unlock-form');
+      var lockButton = document.getElementById('lock-parent-mode-button');
+      var parentTools = document.getElementById('parent-tools');
+      var description = document.getElementById('parent-pin-description');
+      var status = document.getElementById('parent-pin-status');
+
+      setupForm.hidden = isConfigured;
+      unlockForm.hidden = !isConfigured;
+      lockButton.hidden = true;
+      parentTools.hidden = true;
+      description.textContent = isConfigured
+        ? 'Enter the Parent PIN to access household editing controls.'
+        : 'Create a 4-digit PIN to prevent accidental changes by children.';
+      status.textContent = '';
+    },
+    setSignedInParent: function (parentName, email) {
+      document.getElementById('signed-in-parent').textContent = 'Signed in as ' + parentName + ' · ' + email;
+    },
+    setParentModeActive: function (isActive) {
+      var unlockForm = document.getElementById('parent-pin-unlock-form');
+      var lockButton = document.getElementById('lock-parent-mode-button');
+      var parentTools = document.getElementById('parent-tools');
+      var changePinForm = document.getElementById('change-parent-pin-form');
+      var changePinStatus = document.getElementById('change-parent-pin-status');
+      var description = document.getElementById('parent-pin-description');
+      var status = document.getElementById('parent-pin-status');
+
+      unlockForm.hidden = isActive;
+      lockButton.hidden = !isActive;
+      parentTools.hidden = !isActive;
+      description.textContent = isActive
+        ? 'Parent Mode is active for this session.'
+        : 'Enter the Parent PIN to access household editing controls.';
+      status.textContent = isActive ? 'Parent Mode unlocked.' : 'Parent Mode locked.';
+
+      if (!isActive) {
+        changePinForm.reset();
+        changePinStatus.textContent = '';
+      }
+    },
     setMasterChores: function (chores) {
       var members = window.homeManagementSampleData.members;
       var list = document.getElementById('master-task-list');
