@@ -1,5 +1,5 @@
 const authMessage = document.getElementById('auth-message');
 
-import('./auth.js?v=20260819-23').catch(function (error) {
+import('./auth.js?v=20260820-1').catch(function (error) {
   authMessage.textContent = 'Sign-in setup failed: ' + error.message;
 });

@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', function () {
   var completions = [];
   var selectedProfile = 'family';
   var masterChoresLoaded = false;
+  var parentModeActive = false;
 
   function formatDateKey(date) {
     var month = String(date.getMonth() + 1).padStart(2, '0');
@@ -143,7 +144,10 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   function createChoreItem(chore, ownerId, members) {
-    var owner = members[ownerId];
+    var owner = members[ownerId] || {
+      name: ownerId === 'family' ? 'Family' : 'Unassigned',
+      colorClass: 'profile-family'
+    };
     var item = document.createElement('li');
     var indicator = document.createElement('span');
     var label = document.createElement('label');
@@ -375,6 +379,159 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   });
 
+  var choreRooms = [
+    'Kitchen', 'Dining Area', 'Living Room / Family Room', 'Entryway', 'Stairs / Hallways',
+    "Kids' Bedroom", 'Parents / Toddler Bedroom', 'Office', 'Basement Hangout Room',
+    "Kids' Bathroom", 'Primary Bathroom', 'Powder Room 1', 'Powder Room 2',
+    'Laundry Area', 'Whole House', 'Household Admin'
+  ];
+  var choreEditor = document.getElementById('chore-editor');
+  var choreEditorForm = document.getElementById('chore-editor-form');
+  var choreFrequency = document.getElementById('chore-frequency');
+  var choreRoom = document.getElementById('chore-room');
+  var choreOwner = document.getElementById('chore-owner');
+  var choreTodayOwner = document.getElementById('chore-today-owner');
+
+  function addSelectOption(select, value, label) {
+    var option = document.createElement('option');
+    option.value = value;
+    option.textContent = label;
+    select.appendChild(option);
+  }
+
+  choreRooms.forEach(function (room) {
+    addSelectOption(choreRoom, room, room);
+  });
+
+  function populateOwnerOptions() {
+    var members = window.homeManagementSampleData.members;
+    var ownerIds = Object.keys(members).sort(function (firstId, secondId) {
+      return members[firstId].displayOrder - members[secondId].displayOrder;
+    });
+
+    choreOwner.textContent = '';
+    choreTodayOwner.textContent = '';
+    addSelectOption(choreOwner, 'unassigned', 'Unassigned');
+    addSelectOption(choreOwner, 'family', 'Family');
+    addSelectOption(choreTodayOwner, '', 'Use normal owner');
+    addSelectOption(choreTodayOwner, 'unassigned', 'Unassigned');
+    addSelectOption(choreTodayOwner, 'family', 'Family');
+    ownerIds.forEach(function (ownerId) {
+      addSelectOption(choreOwner, ownerId, members[ownerId].name);
+      addSelectOption(choreTodayOwner, ownerId, members[ownerId].name);
+    });
+  }
+
+  populateOwnerOptions();
+
+  function updateRecurrenceFields() {
+    var frequency = choreFrequency.value;
+    document.getElementById('chore-weekday-field').hidden = frequency !== 'weekly' && frequency !== 'every-2-weeks';
+    document.getElementById('chore-monthday-field').hidden = frequency !== 'monthly';
+    document.getElementById('chore-start-date-field').hidden = frequency !== 'every-2-weeks';
+  }
+
+  choreFrequency.addEventListener('change', updateRecurrenceFields);
+
+  function closeChoreEditor() {
+    choreEditor.hidden = true;
+    choreEditorForm.reset();
+    document.getElementById('chore-editor-status').textContent = '';
+  }
+
+  function openChoreEditor(chore) {
+    if (!parentModeActive) return;
+
+    choreEditorForm.reset();
+    document.getElementById('chore-editor-title').textContent = chore ? 'Edit chore' : 'Add chore';
+    document.getElementById('chore-id').value = chore ? chore.id : '';
+    document.getElementById('chore-name').value = chore ? chore.name : '';
+    choreRoom.value = chore ? chore.room : choreRooms[0];
+    choreOwner.value = chore ? chore.defaultOwner : 'unassigned';
+    choreFrequency.value = chore ? chore.frequency : 'daily';
+    document.getElementById('chore-day-of-week').value = chore && chore.dayOfWeek !== null ? String(chore.dayOfWeek) : '1';
+    document.getElementById('chore-day-of-month').value = chore && chore.dayOfMonth ? chore.dayOfMonth : 1;
+    document.getElementById('chore-start-date').value = chore && chore.recurrenceStartDate ? chore.recurrenceStartDate : formatDateKey(currentDate);
+    document.getElementById('chore-family-reset').checked = Boolean(chore && chore.familyReset);
+    document.getElementById('chore-active').checked = chore ? Boolean(chore.active) : true;
+    document.getElementById('chore-notes').value = chore && chore.notes ? chore.notes : '';
+
+    var override = chore ? getOverrideForDate(chore.id, currentDate, window.homeManagementSampleData.overrides) : null;
+    document.getElementById('today-override-fields').hidden = !chore || !isChoreDueOnDate(chore, currentDate);
+    choreTodayOwner.value = override && override.assignedTo ? override.assignedTo : '';
+    document.getElementById('chore-skip-today').checked = Boolean(override && override.skipped);
+    choreTodayOwner.disabled = Boolean(override && override.skipped);
+    document.getElementById('chore-editor-status').textContent = '';
+    updateRecurrenceFields();
+    choreEditor.hidden = false;
+    document.getElementById('chore-name').focus();
+  }
+
+  document.getElementById('add-chore-button').addEventListener('click', function () {
+    openChoreEditor(null);
+  });
+  document.getElementById('cancel-chore-button').addEventListener('click', closeChoreEditor);
+  document.getElementById('chore-skip-today').addEventListener('change', function (event) {
+    choreTodayOwner.disabled = event.target.checked;
+    if (event.target.checked) choreTodayOwner.value = '';
+  });
+
+  choreEditorForm.addEventListener('submit', async function (event) {
+    event.preventDefault();
+    if (!parentModeActive) return;
+
+    var saveButton = document.getElementById('save-chore-button');
+    var status = document.getElementById('chore-editor-status');
+    var choreId = document.getElementById('chore-id').value;
+    var frequency = choreFrequency.value;
+    var chore = {
+      id: choreId || null,
+      name: document.getElementById('chore-name').value.trim(),
+      room: choreRoom.value,
+      defaultOwner: choreOwner.value,
+      frequency: frequency,
+      dayOfWeek: frequency === 'weekly' || frequency === 'every-2-weeks'
+        ? Number(document.getElementById('chore-day-of-week').value) : null,
+      dayOfMonth: frequency === 'monthly' ? Number(document.getElementById('chore-day-of-month').value) : null,
+      active: document.getElementById('chore-active').checked,
+      familyReset: document.getElementById('chore-family-reset').checked,
+      notes: document.getElementById('chore-notes').value.trim() || null
+    };
+
+    if (!chore.name) {
+      status.textContent = 'Enter a chore name.';
+      return;
+    }
+
+    if (frequency === 'every-2-weeks') {
+      chore.recurrenceStartDate = document.getElementById('chore-start-date').value;
+      if (!chore.recurrenceStartDate) {
+        status.textContent = 'Choose a recurrence start date.';
+        return;
+      }
+    }
+
+    saveButton.disabled = true;
+    status.textContent = 'Saving chore...';
+
+    try {
+      var savedId = await window.homeManagementData.saveChore(chore);
+      if (choreId) {
+        await window.homeManagementData.saveTodayOverride(
+          savedId,
+          formatDateKey(currentDate),
+          choreTodayOwner.value,
+          document.getElementById('chore-skip-today').checked
+        );
+      }
+      closeChoreEditor();
+    } catch (error) {
+      status.textContent = 'Could not save the chore: ' + error.message;
+    } finally {
+      saveButton.disabled = false;
+    }
+  });
+
   window.homeManagementApp = {
     setMembers: function (members) {
       var sampleData = window.homeManagementSampleData;
@@ -387,6 +544,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (profileButton) profileButton.textContent = members[memberId].name;
       });
 
+      populateOwnerOptions();
       renderTodayChores();
     },
     setChores: function (chores) {
@@ -446,6 +604,12 @@ document.addEventListener('DOMContentLoaded', function () {
       var description = document.getElementById('parent-pin-description');
       var status = document.getElementById('parent-pin-status');
 
+      parentModeActive = false;
+      document.querySelectorAll('.parent-only-control').forEach(function (control) {
+        control.hidden = true;
+      });
+      closeChoreEditor();
+
       setupForm.hidden = isConfigured;
       unlockForm.hidden = !isConfigured;
       lockButton.hidden = true;
@@ -466,6 +630,12 @@ document.addEventListener('DOMContentLoaded', function () {
       var changePinStatus = document.getElementById('change-parent-pin-status');
       var description = document.getElementById('parent-pin-description');
       var status = document.getElementById('parent-pin-status');
+
+      parentModeActive = isActive;
+      document.querySelectorAll('.parent-only-control').forEach(function (control) {
+        control.hidden = !isActive;
+      });
+      if (!isActive) closeChoreEditor();
 
       unlockForm.hidden = isActive;
       lockButton.hidden = !isActive;
@@ -493,20 +663,32 @@ document.addEventListener('DOMContentLoaded', function () {
       chores.forEach(function (chore) {
         var item = document.createElement('li');
         var owner = members[chore.defaultOwner];
+        var ownerLabel = owner ? owner.name : chore.defaultOwner === 'family' ? 'Family' : 'Unassigned';
         var values = [
           chore.name,
           chore.room,
-          owner ? owner.name : 'Unassigned',
-          chore.frequency.replaceAll('-', ' ')
+          ownerLabel,
+          formatFrequency(chore.frequency) + (chore.active ? '' : ' · Inactive')
         ];
 
         item.className = 'master-task-item';
+        if (!chore.active) item.classList.add('is-inactive');
         values.forEach(function (value, index) {
           var detail = document.createElement('span');
           detail.textContent = value;
           if (index === 0) detail.className = 'master-task-name';
           item.appendChild(detail);
         });
+
+        var editButton = document.createElement('button');
+        editButton.className = 'secondary-action master-task-edit parent-only-control';
+        editButton.type = 'button';
+        editButton.textContent = 'Edit';
+        editButton.hidden = !parentModeActive;
+        editButton.addEventListener('click', function () {
+          openChoreEditor(chore);
+        });
+        item.appendChild(editButton);
         list.appendChild(item);
       });
 

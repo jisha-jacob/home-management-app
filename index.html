@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Home Management App</title>
-  <link rel="stylesheet" href="css/styles.css?v=20260819-4">
+  <link rel="stylesheet" href="css/styles.css?v=20260820-1">
 </head>
 <body>
   <section class="auth-screen" id="auth-screen" aria-labelledby="auth-title">
@@ -246,9 +246,55 @@
       <section class="dashboard-card master-task-view" data-chore-view="all" aria-labelledby="all-tasks-title" hidden>
         <div class="card-heading">
           <h2 id="all-tasks-title">All Tasks</h2>
-          <span class="chore-count" id="master-task-count">Open to load tasks</span>
+          <div class="master-task-actions">
+            <span class="chore-count" id="master-task-count">Open to load tasks</span>
+            <button class="primary-action parent-only-control" id="add-chore-button" type="button" hidden>Add chore</button>
+          </div>
         </div>
         <ul class="master-task-list" id="master-task-list"></ul>
+        <section class="chore-editor" id="chore-editor" aria-labelledby="chore-editor-title" hidden>
+          <div class="card-heading">
+            <h3 id="chore-editor-title">Add chore</h3>
+            <button class="secondary-action" id="cancel-chore-button" type="button">Cancel</button>
+          </div>
+          <form id="chore-editor-form">
+            <input id="chore-id" type="hidden">
+            <div class="chore-form-grid">
+              <label>Chore name<input id="chore-name" type="text" maxlength="120" required></label>
+              <label>Room<select id="chore-room" required></select></label>
+              <label>Normal owner<select id="chore-owner" required></select></label>
+              <label>Recurrence
+                <select id="chore-frequency" required>
+                  <option value="daily">Daily</option>
+                  <option value="weekdays">Weekdays</option>
+                  <option value="weekends">Weekends</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="every-2-weeks">Every 2 weeks</option>
+                  <option value="monthly">Monthly</option>
+                </select>
+              </label>
+              <label id="chore-weekday-field" hidden>Day of week
+                <select id="chore-day-of-week">
+                  <option value="0">Sunday</option><option value="1">Monday</option><option value="2">Tuesday</option>
+                  <option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option>
+                </select>
+              </label>
+              <label id="chore-monthday-field" hidden>Day of month<input id="chore-day-of-month" type="number" min="1" max="31" value="1"></label>
+              <label id="chore-start-date-field" hidden>Recurrence start date<input id="chore-start-date" type="date"></label>
+              <label class="checkbox-field"><input id="chore-family-reset" type="checkbox"> Include in Family Reset</label>
+              <label class="checkbox-field"><input id="chore-active" type="checkbox" checked> Active</label>
+            </div>
+            <label class="chore-notes-field">Notes<textarea id="chore-notes" maxlength="500" rows="3"></textarea></label>
+            <fieldset class="today-override-fields" id="today-override-fields" hidden>
+              <legend>Today only</legend>
+              <label>Temporary owner<select id="chore-today-owner"></select></label>
+              <label class="checkbox-field"><input id="chore-skip-today" type="checkbox"> Skip today</label>
+              <p>Leave the temporary owner blank to use the normal owner.</p>
+            </fieldset>
+            <p class="form-status" id="chore-editor-status" role="status"></p>
+            <button class="primary-action" id="save-chore-button" type="submit">Save chore</button>
+          </form>
+        </section>
       </section>
     </section>
     <section class="app-screen" id="meals-screen" data-screen="meals" hidden>
@@ -411,7 +457,7 @@
     </section>
   </main>
   <script src="data/sample-data.js"></script>
-  <script src="js/app.js?v=20260819-13"></script>
-  <script type="module" src="js/auth-loader.js?v=20260819-22"></script>
+  <script src="js/app.js?v=20260820-1"></script>
+  <script type="module" src="js/auth-loader.js?v=20260820-1"></script>
 </body>
 </html>

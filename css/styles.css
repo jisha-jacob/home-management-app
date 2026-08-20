@@ -720,6 +720,96 @@ main {
   color: #66736c;
 }
 
+.master-task-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.parent-only-control[hidden] {
+  display: none;
+}
+
+.master-task-item {
+  position: relative;
+}
+
+.master-task-item.is-inactive {
+  opacity: 0.65;
+}
+
+.master-task-edit {
+  justify-self: end;
+}
+
+.chore-editor {
+  margin-top: 24px;
+  border-top: 1px solid #dfe5e1;
+  padding-top: 24px;
+}
+
+.chore-editor[hidden],
+.chore-form-grid label[hidden] {
+  display: none;
+}
+
+.chore-editor form,
+.chore-form-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.chore-form-grid {
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+
+.chore-form-grid label,
+.chore-notes-field,
+.today-override-fields label {
+  display: grid;
+  gap: 8px;
+  color: #66736c;
+  font-size: 0.9rem;
+  font-weight: 650;
+}
+
+.chore-form-grid input:not([type="checkbox"]),
+.chore-form-grid select,
+.chore-notes-field textarea,
+.today-override-fields select {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid #aeb8b2;
+  border-radius: 10px;
+  padding: 9px 10px;
+  color: #22332b;
+  background: #fff;
+  font: inherit;
+}
+
+.chore-notes-field textarea {
+  resize: vertical;
+}
+
+.chore-form-grid .checkbox-field,
+.today-override-fields .checkbox-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.today-override-fields {
+  display: grid;
+  gap: 12px;
+  border: 1px solid #dfe5e1;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.today-override-fields[hidden] {
+  display: none;
+}
+
 @media (min-width: 760px) {
   body {
     padding: 24px;
@@ -770,7 +860,7 @@ main {
   }
 
   .master-task-item {
-    grid-template-columns: minmax(180px, 1.5fr) minmax(140px, 1fr) minmax(90px, 0.7fr) minmax(100px, 0.7fr);
+    grid-template-columns: minmax(180px, 1.5fr) minmax(140px, 1fr) minmax(90px, 0.7fr) minmax(100px, 0.7fr) auto;
     align-items: center;
   }
 

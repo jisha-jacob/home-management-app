@@ -41,6 +41,33 @@ window.homeManagementData = {
     });
 
     window.homeManagementApp.setMasterChores(chores);
+    return chores;
+  },
+  saveChore: async function (chore) {
+    const choreId = chore.id || doc(collection(db, 'chores')).id;
+    const savedChore = Object.assign({}, chore);
+
+    delete savedChore.id;
+    await setDoc(doc(db, 'chores', choreId), savedChore);
+    await loadActiveChores();
+    await window.homeManagementData.loadAllChores();
+    return choreId;
+  },
+  saveTodayOverride: async function (choreId, date, assignedTo, skipped) {
+    const overrideReference = doc(db, 'overrides', date + '_' + choreId);
+
+    if (!assignedTo && !skipped) {
+      await deleteDoc(overrideReference);
+    } else {
+      await setDoc(overrideReference, {
+        choreId: choreId,
+        date: date,
+        assignedTo: assignedTo || null,
+        skipped: Boolean(skipped)
+      });
+    }
+
+    await loadTodayOverrides();
   },
   saveChoreCompletion: async function (choreId, date, completed, completedBy) {
     const completionReference = doc(db, 'completions', date + '_' + choreId);

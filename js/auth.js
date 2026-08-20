@@ -13,7 +13,7 @@ import {
   loadTodayOverrides,
   saveParentPin,
   verifyParentPin
-} from "./firestore-data.js?v=20260819-10";
+} from "./firestore-data.js?v=20260820-1";
 
 const approvedParentAccounts = {
   'jisha18@gmail.com': 'Mom',
