@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Home Management App</title>
-  <link rel="stylesheet" href="css/styles.css?v=20260820-11">
+  <link rel="stylesheet" href="css/styles.css?v=20260820-15">
 </head>
 <body>
   <section class="auth-screen" id="auth-screen" aria-labelledby="auth-title">
@@ -19,6 +19,7 @@
     <button class="navigation-button" type="button" data-screen-target="home" aria-current="page">Home</button>
     <button class="navigation-button" type="button" data-screen-target="chores">Chores</button>
     <button class="navigation-button" type="button" data-screen-target="meals">Meals</button>
+    <button class="navigation-button" type="button" data-screen-target="shopping">Shopping</button>
     <button class="navigation-button" type="button" data-screen-target="reset">
       <span class="desktop-label">Family Reset</span>
       <span class="phone-label">Reset</span>
@@ -238,10 +239,28 @@
         <div class="card-heading">
           <h2 id="all-tasks-title">All Tasks</h2>
           <div class="master-task-actions">
-            <span class="chore-count" id="master-task-count">Open to load tasks</span>
+            <span class="chore-count" id="master-task-count">No tasks loaded</span>
             <button class="primary-action parent-only-control" id="add-chore-button" type="button" hidden>Add chore</button>
           </div>
         </div>
+        <form class="master-task-filters" id="master-task-filter-form">
+          <label>Room<select id="master-task-room-filter"><option value="">Any room</option></select></label>
+          <label>Owner<select id="master-task-owner-filter"><option value="">Any owner</option></select></label>
+          <label>Frequency
+            <select id="master-task-frequency-filter">
+              <option value="">Any frequency</option>
+              <option value="daily">Daily</option><option value="weekdays">Weekdays</option>
+              <option value="weekends">Weekends</option><option value="weekly">Weekly</option>
+              <option value="every-2-weeks">Every 2 weeks</option><option value="monthly">Monthly</option>
+            </select>
+          </label>
+          <div class="master-task-filter-actions">
+            <button class="primary-action" id="show-filtered-tasks-button" type="submit">Show Results</button>
+            <button class="secondary-action" id="show-all-tasks-button" type="button">Show All Tasks</button>
+            <button class="secondary-action" id="clear-task-filters-button" type="button">Clear Filters</button>
+          </div>
+        </form>
+        <p class="master-task-prompt" id="master-task-prompt">Choose filters and select Show Results, or select Show All Tasks.</p>
         <ul class="master-task-list" id="master-task-list"></ul>
         <section class="chore-editor" id="chore-editor" aria-labelledby="chore-editor-title" hidden>
           <div class="card-heading">
@@ -346,6 +365,41 @@
       </section>
       <div class="reset-group-grid" id="reset-group-grid"></div>
     </section>
+    <section class="app-screen" id="shopping-screen" data-screen="shopping" hidden>
+      <header class="screen-header">
+        <p class="screen-kicker">Shared family list</p>
+        <h1>Shopping</h1>
+      </header>
+      <section class="dashboard-card shopping-card" aria-labelledby="shopping-list-title">
+        <form class="shopping-entry-form" id="shopping-entry-form">
+          <label for="shopping-item-input">What do we need?</label>
+          <div class="shopping-entry-controls">
+            <input id="shopping-item-input" type="text" maxlength="120" autocomplete="off" enterkeyhint="done" placeholder="Add an item" required>
+            <button class="secondary-action shopping-microphone" id="shopping-microphone-button" type="button" aria-label="Type an item using your voice" title="Voice typing" hidden>
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Z"></path>
+                <path d="M18 11v1a6 6 0 0 1-12 0v-1M12 18v3M9 21h6"></path>
+              </svg>
+            </button>
+            <button class="primary-action" id="add-shopping-item-button" type="submit">Add</button>
+          </div>
+          <p class="form-status" id="shopping-entry-status" role="status" aria-live="polite"></p>
+        </form>
+        <div class="card-heading shopping-list-heading">
+          <h2 id="shopping-list-title">Current List</h2>
+          <div class="shopping-list-actions">
+            <span class="chore-count" id="shopping-item-count">Loading...</span>
+            <button class="secondary-action shopping-clear-button" id="clear-shopping-list-button" type="button" hidden>Clear All</button>
+          </div>
+        </div>
+        <p class="shopping-empty-state" id="shopping-empty-state" hidden>The shopping list is empty.</p>
+        <ul class="shopping-list" id="shopping-list" aria-live="polite"></ul>
+        <div class="shopping-undo" id="shopping-undo" role="status" hidden>
+          <span id="shopping-undo-message"></span>
+          <button class="secondary-action" id="shopping-undo-button" type="button">Undo</button>
+        </div>
+      </section>
+    </section>
     <section class="app-screen" id="more-screen" data-screen="more" hidden>
       <header class="screen-header">
         <p class="screen-kicker">Additional options</p>
@@ -431,7 +485,7 @@
     </section>
   </main>
   <script src="data/sample-data.js"></script>
-  <script src="js/app.js?v=20260820-12"></script>
-  <script type="module" src="js/auth-loader.js?v=20260820-13"></script>
+  <script src="js/app.js?v=20260820-16"></script>
+  <script type="module" src="js/auth-loader.js?v=20260820-16"></script>
 </body>
 </html>

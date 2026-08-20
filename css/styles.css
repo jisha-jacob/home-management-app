@@ -71,6 +71,38 @@ main {
   color: #27332d;
 }
 
+.shopping-card { max-width: 760px; }
+
+.shopping-entry-form { display: grid; gap: 10px; margin-bottom: 28px; }
+.shopping-entry-form > label { font-weight: 700; }
+.shopping-entry-controls { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 10px; }
+.shopping-entry-controls input {
+  width: 100%; min-height: 52px; border: 1px solid #aeb8b2; border-radius: 12px;
+  background: #ffffff; color: #22332b; font: inherit; font-size: 1.05rem; padding: 12px 14px;
+}
+.shopping-microphone { width: 52px; padding: 10px; }
+.shopping-microphone svg {
+  display: block; width: 24px; height: 24px; margin: auto; fill: none;
+  stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+.shopping-microphone.is-listening { background: #f3d8d8; color: #7b2727; }
+.shopping-list-heading { margin-bottom: 0; }
+.shopping-list-actions { display: flex; align-items: center; gap: 12px; }
+.shopping-clear-button { min-height: 42px; padding: 8px 14px; }
+.shopping-list { margin: 0; padding: 0; list-style: none; }
+.shopping-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  border-top: 1px solid #e7ebe8; padding: 14px 0;
+}
+.shopping-item-name { overflow-wrap: anywhere; font-size: 1.05rem; font-weight: 650; }
+.shopping-remove-button { flex: 0 0 auto; }
+.shopping-empty-state { margin: 18px 0 0; color: #66736c; }
+.shopping-undo {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  margin-top: 18px; border-radius: 12px; background: #27332d; color: #ffffff;
+  padding: 10px 12px 10px 16px;
+}
+
 .app-navigation {
   position: fixed;
   z-index: 10;
@@ -78,7 +110,7 @@ main {
   bottom: 0;
   left: 0;
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   border-top: 1px solid #dfe5e0;
   background: #ffffff;
   box-shadow: 0 -4px 16px rgba(39, 51, 45, 0.08);
@@ -227,6 +259,24 @@ main {
   padding: 0;
   list-style: none;
 }
+
+.master-task-filters {
+  display: grid;
+  gap: 12px;
+  margin: 18px 0;
+  padding: 16px;
+  border: 1px solid #dfe5e1;
+  border-radius: 12px;
+  background: #f9faf8;
+}
+
+.master-task-filters label { display: grid; gap: 6px; font-weight: 700; }
+.master-task-filters select {
+  width: 100%; min-height: 46px; border: 1px solid #aeb8b2; border-radius: 10px;
+  background: #ffffff; color: #22332b; font: inherit; padding: 9px 10px;
+}
+.master-task-filter-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.master-task-prompt { color: #66736c; }
 
 .master-task-item {
   display: grid;
@@ -1129,6 +1179,9 @@ main {
     align-items: center;
   }
 
+  .master-task-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: end; }
+  .master-task-filter-actions { grid-column: 1 / -1; }
+
   .weekly-meal-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1148,6 +1201,10 @@ main {
   body {
     padding: 20px 16px calc(128px + env(safe-area-inset-bottom, 0px));
   }
+
+  .shopping-entry-controls { grid-template-columns: minmax(0, 1fr) auto; }
+  .shopping-entry-controls input { grid-column: 1 / -1; }
+  .shopping-entry-controls .primary-action { width: 100%; }
 
   .household-reminder {
     align-items: flex-start;

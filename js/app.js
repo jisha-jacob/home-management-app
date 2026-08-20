@@ -2,7 +2,7 @@ document.addEventListener('DOMContentLoaded', function () {
   var currentDate = new Date();
   var completions = [];
   var selectedProfile = 'family';
-  var masterChoresLoaded = false;
+  var masterTaskRequest = null;
   var parentModeActive = false;
   var weeklyMeals = [];
   var mealFavorites = [];
@@ -10,6 +10,9 @@ document.addEventListener('DOMContentLoaded', function () {
   var familyResetSession = null;
   var familyResetTasks = [];
   var calendarConnected = false;
+  var shoppingItems = [];
+  var removedShoppingItems = [];
+  var shoppingUndoTimer = null;
 
   var nextMidnight = new Date();
   nextMidnight.setHours(24, 0, 5, 0);
@@ -606,16 +609,6 @@ document.addEventListener('DOMContentLoaded', function () {
         viewButton.setAttribute('aria-pressed', viewButton === button ? 'true' : 'false');
       });
 
-      if (target === 'all' && !masterChoresLoaded) {
-        document.getElementById('master-task-count').textContent = 'Loading tasksâ€¦';
-
-        try {
-          await window.homeManagementData.loadAllChores();
-          masterChoresLoaded = true;
-        } catch (error) {
-          document.getElementById('master-task-count').textContent = 'Tasks could not be loaded';
-        }
-      }
     });
   });
 
@@ -631,6 +624,10 @@ document.addEventListener('DOMContentLoaded', function () {
   var choreRoom = document.getElementById('chore-room');
   var choreOwner = document.getElementById('chore-owner');
   var choreTodayOwner = document.getElementById('chore-today-owner');
+  var masterTaskFilterForm = document.getElementById('master-task-filter-form');
+  var masterTaskRoomFilter = document.getElementById('master-task-room-filter');
+  var masterTaskOwnerFilter = document.getElementById('master-task-owner-filter');
+  var masterTaskFrequencyFilter = document.getElementById('master-task-frequency-filter');
 
   function addSelectOption(select, value, label) {
     var option = document.createElement('option');
@@ -641,6 +638,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   choreRooms.forEach(function (room) {
     addSelectOption(choreRoom, room, room);
+    addSelectOption(masterTaskRoomFilter, room, room);
   });
 
   function populateOwnerOptions() {
@@ -651,16 +649,72 @@ document.addEventListener('DOMContentLoaded', function () {
 
     choreOwner.textContent = '';
     choreTodayOwner.textContent = '';
+    masterTaskOwnerFilter.textContent = '';
     addSelectOption(choreOwner, 'unassigned', 'Unassigned');
     addSelectOption(choreOwner, 'family', 'Family');
     addSelectOption(choreTodayOwner, '', 'Use normal owner');
     addSelectOption(choreTodayOwner, 'unassigned', 'Unassigned');
     addSelectOption(choreTodayOwner, 'family', 'Family');
+    addSelectOption(masterTaskOwnerFilter, '', 'Any owner');
+    addSelectOption(masterTaskOwnerFilter, 'unassigned', 'Unassigned');
+    addSelectOption(masterTaskOwnerFilter, 'family', 'Family');
     ownerIds.forEach(function (ownerId) {
       addSelectOption(choreOwner, ownerId, members[ownerId].name);
       addSelectOption(choreTodayOwner, ownerId, members[ownerId].name);
+      addSelectOption(masterTaskOwnerFilter, ownerId, members[ownerId].name);
     });
   }
+
+  function setMasterTaskControlsDisabled(disabled) {
+    document.getElementById('show-filtered-tasks-button').disabled = disabled;
+    document.getElementById('show-all-tasks-button').disabled = disabled;
+    document.getElementById('clear-task-filters-button').disabled = disabled;
+  }
+
+  async function loadMasterTaskRequest(request) {
+    var count = document.getElementById('master-task-count');
+    var prompt = document.getElementById('master-task-prompt');
+
+    masterTaskRequest = request;
+    setMasterTaskControlsDisabled(true);
+    count.textContent = 'Loading tasks...';
+    prompt.hidden = true;
+    try {
+      await window.homeManagementData.loadMasterChores(request.showAll ? {} : request.filters);
+    } catch (error) {
+      count.textContent = 'Tasks could not be loaded';
+      prompt.hidden = false;
+      prompt.textContent = 'Could not load tasks: ' + error.message;
+    } finally {
+      setMasterTaskControlsDisabled(false);
+    }
+  }
+
+  masterTaskFilterForm.addEventListener('submit', function (event) {
+    event.preventDefault();
+    loadMasterTaskRequest({
+      showAll: false,
+      filters: {
+        room: masterTaskRoomFilter.value,
+        owner: masterTaskOwnerFilter.value,
+        frequency: masterTaskFrequencyFilter.value
+      }
+    });
+  });
+
+  document.getElementById('show-all-tasks-button').addEventListener('click', function () {
+    loadMasterTaskRequest({ showAll: true, filters: {} });
+  });
+
+  document.getElementById('clear-task-filters-button').addEventListener('click', function () {
+    masterTaskFilterForm.reset();
+    masterTaskRequest = null;
+    document.getElementById('master-task-list').textContent = '';
+    document.getElementById('master-task-count').textContent = 'No tasks loaded';
+    document.getElementById('master-task-prompt').textContent = 'Choose filters and select Show Results, or select Show All Tasks.';
+    document.getElementById('master-task-prompt').hidden = false;
+    closeChoreEditor();
+  });
 
   function renderFamilyMemberEditor() {
     var members = window.homeManagementSampleData.members;
@@ -796,6 +850,7 @@ document.addEventListener('DOMContentLoaded', function () {
         );
       }
       closeChoreEditor();
+      if (masterTaskRequest) await loadMasterTaskRequest(masterTaskRequest);
     } catch (error) {
       status.textContent = 'Could not save the chore: ' + error.message;
     } finally {
@@ -1012,6 +1067,155 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
 
+  var shoppingForm = document.getElementById('shopping-entry-form');
+  var shoppingInput = document.getElementById('shopping-item-input');
+  var shoppingStatus = document.getElementById('shopping-entry-status');
+  var shoppingAddButton = document.getElementById('add-shopping-item-button');
+  var shoppingMicrophoneButton = document.getElementById('shopping-microphone-button');
+  var shoppingUndo = document.getElementById('shopping-undo');
+  var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  function hideShoppingUndo() {
+    window.clearTimeout(shoppingUndoTimer);
+    shoppingUndo.hidden = true;
+    removedShoppingItems = [];
+  }
+
+  function renderShoppingItems() {
+    var list = document.getElementById('shopping-list');
+    var emptyState = document.getElementById('shopping-empty-state');
+    var count = document.getElementById('shopping-item-count');
+
+    list.textContent = '';
+    emptyState.hidden = shoppingItems.length !== 0;
+    count.textContent = shoppingItems.length + (shoppingItems.length === 1 ? ' item' : ' items');
+    document.getElementById('clear-shopping-list-button').hidden = shoppingItems.length === 0;
+    shoppingItems.forEach(function (item) {
+      var listItem = document.createElement('li');
+      var itemName = document.createElement('span');
+      var removeButton = document.createElement('button');
+
+      listItem.className = 'shopping-item';
+      itemName.className = 'shopping-item-name';
+      itemName.textContent = item.name;
+      removeButton.className = 'secondary-action shopping-remove-button';
+      removeButton.type = 'button';
+      removeButton.textContent = 'Remove';
+      removeButton.setAttribute('aria-label', 'Remove ' + item.name);
+      removeButton.addEventListener('click', async function () {
+        removeButton.disabled = true;
+        shoppingStatus.textContent = '';
+        try {
+          await window.homeManagementData.removeShoppingItem(item.id);
+          window.clearTimeout(shoppingUndoTimer);
+          removedShoppingItems = [item];
+          document.getElementById('shopping-undo-message').textContent = item.name + ' removed.';
+          shoppingUndo.hidden = false;
+          shoppingUndoTimer = window.setTimeout(hideShoppingUndo, 7000);
+        } catch (error) {
+          shoppingStatus.textContent = 'Could not remove the item: ' + error.message;
+          removeButton.disabled = false;
+        }
+      });
+      listItem.appendChild(itemName);
+      listItem.appendChild(removeButton);
+      list.appendChild(listItem);
+    });
+  }
+
+  shoppingForm.addEventListener('submit', async function (event) {
+    event.preventDefault();
+    var name = shoppingInput.value.trim();
+
+    if (!name) {
+      shoppingStatus.textContent = 'Enter an item first.';
+      shoppingInput.focus();
+      return;
+    }
+    shoppingAddButton.disabled = true;
+    shoppingStatus.textContent = 'Adding item...';
+    try {
+      await window.homeManagementData.addShoppingItem(name, selectedProfile);
+      shoppingInput.value = '';
+      shoppingStatus.textContent = name + ' added.';
+      shoppingInput.focus();
+    } catch (error) {
+      shoppingStatus.textContent = 'Could not add the item: ' + error.message;
+    } finally {
+      shoppingAddButton.disabled = false;
+    }
+  });
+
+  document.getElementById('shopping-undo-button').addEventListener('click', async function () {
+    var items = removedShoppingItems.slice();
+    var button = document.getElementById('shopping-undo-button');
+
+    if (items.length === 0) return;
+    button.disabled = true;
+    try {
+      await window.homeManagementData.restoreShoppingItems(items);
+      shoppingStatus.textContent = items.length === 1 ? items[0].name + ' restored.' : 'Shopping list restored.';
+      hideShoppingUndo();
+    } catch (error) {
+      shoppingStatus.textContent = 'Could not restore the item: ' + error.message;
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+  document.getElementById('clear-shopping-list-button').addEventListener('click', async function () {
+    var button = document.getElementById('clear-shopping-list-button');
+    var items = shoppingItems.slice();
+
+    if (items.length === 0 || !window.confirm('Clear all items from the shopping list?')) return;
+    button.disabled = true;
+    shoppingStatus.textContent = 'Clearing list...';
+    try {
+      await window.homeManagementData.clearShoppingItems(items);
+      window.clearTimeout(shoppingUndoTimer);
+      removedShoppingItems = items;
+      document.getElementById('shopping-undo-message').textContent = 'Shopping list cleared.';
+      shoppingUndo.hidden = false;
+      shoppingUndoTimer = window.setTimeout(hideShoppingUndo, 7000);
+      shoppingStatus.textContent = '';
+    } catch (error) {
+      shoppingStatus.textContent = 'Could not clear the list: ' + error.message;
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+  if (SpeechRecognition) {
+    shoppingMicrophoneButton.hidden = false;
+    shoppingMicrophoneButton.addEventListener('click', function () {
+      var recognition = new SpeechRecognition();
+
+      recognition.lang = navigator.language || 'en-US';
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+      shoppingMicrophoneButton.disabled = true;
+      shoppingMicrophoneButton.classList.add('is-listening');
+      shoppingMicrophoneButton.setAttribute('aria-label', 'Listening for a shopping item');
+      shoppingMicrophoneButton.title = 'Listening...';
+      shoppingStatus.textContent = 'Say one shopping item.';
+      recognition.addEventListener('result', function (event) {
+        shoppingInput.value = event.results[0][0].transcript.trim().slice(0, 120);
+        shoppingStatus.textContent = 'Review the item, then select Add.';
+        shoppingInput.focus();
+      });
+      recognition.addEventListener('error', function () {
+        shoppingStatus.textContent = 'Voice typing was not available. You can still type the item.';
+      });
+      recognition.addEventListener('end', function () {
+        shoppingMicrophoneButton.disabled = false;
+        shoppingMicrophoneButton.classList.remove('is-listening');
+        shoppingMicrophoneButton.setAttribute('aria-label', 'Type an item using your voice');
+        shoppingMicrophoneButton.title = 'Voice typing';
+      });
+      recognition.start();
+    });
+  }
+
   window.homeManagementApp = {
     setMembers: function (members) {
       var sampleData = window.homeManagementSampleData;
@@ -1072,6 +1276,10 @@ document.addEventListener('DOMContentLoaded', function () {
     setMealFavorites: function (favorites) {
       mealFavorites = favorites;
       renderMealFavorites();
+    },
+    setShoppingItems: function (items) {
+      shoppingItems = items;
+      renderShoppingItems();
     },
     setFamilyResetSession: function (session) {
       familyResetSession = session;
@@ -1213,7 +1421,8 @@ document.addEventListener('DOMContentLoaded', function () {
         list.appendChild(item);
       });
 
-      document.getElementById('master-task-count').textContent = chores.length + ' tasks';
+      var countLabel = masterTaskRequest && masterTaskRequest.showAll ? ' tasks' : ' matching tasks';
+      document.getElementById('master-task-count').textContent = chores.length + countLabel;
     }
   };
 });

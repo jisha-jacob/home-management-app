@@ -13,12 +13,13 @@ import {
   loadHouseholdContent,
   loadMealFavorites,
   loadParentModeSettings,
+  loadShoppingItems,
   loadTodayCompletions,
   loadTodayMeals,
   loadTodayOverrides,
   saveParentPin,
   verifyParentPin
-} from "./firestore-data.js?v=20260820-11";
+} from "./firestore-data.js?v=20260820-14";
 
 const approvedParentAccounts = {
   'jisha18@gmail.com': 'Mom',
@@ -115,6 +116,7 @@ async function showApp(user) {
   await loadCurrentWeekMeals();
   await loadMealFavorites();
   await loadCurrentFamilyReset();
+  await loadShoppingItems();
   await loadParentModeSettings();
   try {
     await loadCalendarConnection();

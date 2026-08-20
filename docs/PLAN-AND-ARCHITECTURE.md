@@ -277,6 +277,7 @@ Recommended application navigation:
 - Home
 - Chores
 - Meals
+- Shopping
 - Family Reset
 - More
 
@@ -286,6 +287,7 @@ Use a bottom navigation bar:
 - Home
 - Chores
 - Meals
+- Shopping
 - Reset
 - More
 
@@ -502,6 +504,11 @@ phases.
 
 ### All Tasks
 Parent-focused master task list.
+
+Do not load the full chore collection automatically when this view opens. Show
+room, owner, and frequency filters first so the family can request only the
+records they need. Provide an explicit Show All Tasks option when the complete
+master list is required.
 
 ---
 
@@ -1166,6 +1173,18 @@ It should not be treated as internet-grade authentication.
 }
 ```
 
+## Shopping Item
+
+```json
+{
+  "name": "Bananas",
+  "addedAt": "server timestamp",
+  "addedBy": "child-1"
+}
+```
+
+Shopping items are shared household data and update in real time across signed-in devices. Real family display names remain in Firestore; repository sample data continues to use generic member identifiers.
+
 ---
 
 # 21. Implementation Phases
@@ -1521,7 +1540,10 @@ Display the family's existing Google Calendar.
 - Read today's events
 - Show small upcoming preview
 - Combined view only
-- Minimal refresh strategy
+- Persistent server-side OAuth connection
+- Secure refresh-token storage inaccessible to browser clients
+- Automatic token renewal, app-load refresh, and new-day refresh
+- Parent Mode controls to disconnect or change the connected account
 
 ### Do not build
 - Event creation
@@ -1543,6 +1565,79 @@ Use the app in real family life.
 
 ### Trial period
 Approximately 2–4 weeks.
+
+### Approved Enhancement — Shared Shopping List
+
+Add a lightweight Shopping page that all family members can use while Parent Mode is locked.
+
+Build:
+
+- Manual item entry with a large tablet-friendly input and Add button
+- Optional in-app voice recognition using the browser Web Speech API when supported
+- Full support for the tablet keyboard's built-in dictation
+- Graceful manual-entry fallback when browser speech recognition is unavailable
+- Real-time Firestore synchronization across signed-in family devices
+- A touch-friendly Remove button for each item
+- A Clear All action with confirmation for the end of a shopping trip
+- A short Undo option after accidental removal
+- Empty-list state, blank-item prevention, and a reasonable item-length limit
+
+Keep Version 1 intentionally simple. Do not initially add quantities, prices, stores, categories, recurring items, or external grocery integrations.
+
+Cost and privacy constraints:
+
+- Do not add another Cloud Function or paid speech-to-text service
+- Store one small Firestore document per active shopping item
+- Keep expected reads, writes, deletes, and storage within normal family-scale free quotas
+- Treat browser speech recognition as optional because support varies and some browsers may use a server-based recognition engine
+
+Acceptance checks:
+
+- Children can add and remove items without unlocking Parent Mode
+- Manual typing always works
+- The microphone control appears only when speech recognition is supported
+- Recognized speech fills the input for review before the item is added
+- Changes appear on another signed-in device without refreshing
+- Removed items can be restored briefly with Undo
+- Clearing the full list requires confirmation and can be undone briefly
+- The layout remains easy to use on tablet and phone screens
+
+### Approved Enhancement — Filtered All Tasks Loading
+
+Change the Chores screen's All Tasks view so it does not automatically download
+the complete chore collection.
+
+Build:
+
+- Show the filter controls before any task records are loaded
+- Provide filters for room, normal owner, and frequency
+- Include an Any option for each filter so filters can be combined flexibly
+- Add a Show Results action that queries Firestore using the selected filters
+- Add an explicit Show All Tasks action that loads the complete collection
+- Add a Clear Filters action that returns the view to its initial unloaded state
+- Show the number of returned records, such as `12 matching tasks`
+- After adding or editing a chore, refresh the current query rather than automatically loading every task
+- Keep filtering available while Parent Mode is locked because it is read-only; keep chore editing protected by Parent Mode
+- Use compact controls on larger screens and stacked, touch-friendly controls on phones
+
+Data and cost constraints:
+
+- Perform the selected filtering in Firestore so nonmatching records are not downloaded
+- Do not add a Cloud Function or new collection
+- Create only the Firestore composite indexes that actual combined queries require
+- Preserve the existing authenticated household security rules
+
+Acceptance checks:
+
+- Opening All Tasks performs no chore-list read until the user requests results
+- Each room, owner, and frequency filter works independently
+- Multiple filters work together
+- Any correctly removes that field from the query
+- Show All Tasks returns the complete master list
+- Clear Filters removes the results and returns to the unloaded state
+- Result counts are accurate
+- Editing a returned chore preserves and refreshes the active filter selection
+- The controls remain usable on phone, tablet, and desktop layouts
 
 ### Observe
 
@@ -1571,19 +1666,6 @@ Approximately 2–4 weeks.
 # 22. Future Features — Not Yet Approved
 
 Possible later additions:
-
-## Persistent Google Calendar Connection
-
-Revisit after the initial real-world trial. The Phase 10 browser-only connection uses a short-lived access token, so refreshing the app or returning after the token expires may require reconnecting Google Calendar.
-
-Evaluate a secure server-backed OAuth flow that can:
-
-- Keep the Calendar connection active across refreshes and overnight use
-- Refresh expired Google access tokens without parent interaction
-- Let a parent disconnect or connect a different Google Calendar account from the More page
-- Refresh the displayed day automatically after midnight
-
-Before implementation, confirm Firebase Blaze billing requirements, expected operating cost, secure refresh-token storage, and the Google OAuth callback configuration.
 
 ## Rewards / Gamification
 Revisit after approximately one month of actual use.

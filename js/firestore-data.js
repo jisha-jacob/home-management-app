@@ -8,6 +8,7 @@ import {
   orderBy,
   query,
   setDoc,
+  serverTimestamp,
   where,
   writeBatch
 } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-firestore.js";
@@ -20,6 +21,7 @@ let stopMealFavoritesSync = null;
 let stopResetSessionSync = null;
 let stopResetTasksSync = null;
 let stopHouseholdContentSync = null;
+let stopShoppingItemsSync = null;
 
 function formatDateKey(date) {
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -45,8 +47,15 @@ async function hashPin(pin) {
 }
 
 window.homeManagementData = {
-  loadAllChores: async function () {
-    const snapshot = await getDocs(collection(db, 'chores'));
+  loadMasterChores: async function (filters) {
+    const constraints = [];
+
+    if (filters && filters.room) constraints.push(where('room', '==', filters.room));
+    if (filters && filters.owner) constraints.push(where('defaultOwner', '==', filters.owner));
+    if (filters && filters.frequency) constraints.push(where('frequency', '==', filters.frequency));
+
+    const choreCollection = collection(db, 'chores');
+    const snapshot = await getDocs(constraints.length ? query(choreCollection, ...constraints) : choreCollection);
     const chores = [];
 
     snapshot.forEach(function (choreDocument) {
@@ -63,7 +72,6 @@ window.homeManagementData = {
     delete savedChore.id;
     await setDoc(doc(db, 'chores', choreId), savedChore);
     await loadActiveChores();
-    await window.homeManagementData.loadAllChores();
     return choreId;
   },
   saveTodayOverride: async function (choreId, date, assignedTo, skipped) {
@@ -120,6 +128,45 @@ window.homeManagementData = {
 
     await batch.commit();
     await loadHouseholdMembers();
+  },
+  addShoppingItem: async function (name, addedBy) {
+    const itemReference = doc(collection(db, 'shoppingItems'));
+
+    await setDoc(itemReference, {
+      name: name,
+      addedAt: serverTimestamp(),
+      addedBy: addedBy
+    });
+  },
+  removeShoppingItem: async function (itemId) {
+    await deleteDoc(doc(db, 'shoppingItems', itemId));
+  },
+  restoreShoppingItem: async function (item) {
+    await setDoc(doc(db, 'shoppingItems', item.id), {
+      name: item.name,
+      addedAt: serverTimestamp(),
+      addedBy: item.addedBy || 'family'
+    });
+  },
+  clearShoppingItems: async function (items) {
+    const batch = writeBatch(db);
+
+    items.forEach(function (item) {
+      batch.delete(doc(db, 'shoppingItems', item.id));
+    });
+    await batch.commit();
+  },
+  restoreShoppingItems: async function (items) {
+    const batch = writeBatch(db);
+
+    items.forEach(function (item) {
+      batch.set(doc(db, 'shoppingItems', item.id), {
+        name: item.name,
+        addedAt: serverTimestamp(),
+        addedBy: item.addedBy || 'family'
+      });
+    });
+    await batch.commit();
   },
   getLastWeekMeals: async function () {
     const currentWeekStart = getWeekStart(new Date());
@@ -231,8 +278,45 @@ window.homeManagementData = {
       stopHouseholdContentSync();
       stopHouseholdContentSync = null;
     }
+
+    if (stopShoppingItemsSync) {
+      stopShoppingItemsSync();
+      stopShoppingItemsSync = null;
+    }
   }
 };
+
+export async function loadShoppingItems() {
+  if (stopShoppingItemsSync) stopShoppingItemsSync();
+
+  await new Promise(function (resolve, reject) {
+    let firstSnapshot = true;
+
+    stopShoppingItemsSync = onSnapshot(
+      collection(db, 'shoppingItems'),
+      function (snapshot) {
+        const items = [];
+
+        snapshot.forEach(function (itemDocument) {
+          items.push(Object.assign({ id: itemDocument.id }, itemDocument.data()));
+        });
+        items.sort(function (firstItem, secondItem) {
+          const firstTime = firstItem.addedAt && firstItem.addedAt.toMillis ? firstItem.addedAt.toMillis() : 0;
+          const secondTime = secondItem.addedAt && secondItem.addedAt.toMillis ? secondItem.addedAt.toMillis() : 0;
+          return firstTime - secondTime || firstItem.name.localeCompare(secondItem.name);
+        });
+        window.homeManagementApp.setShoppingItems(items);
+        if (firstSnapshot) {
+          firstSnapshot = false;
+          resolve();
+        }
+      },
+      function (error) {
+        if (firstSnapshot) reject(error);
+      }
+    );
+  });
+}
 
 export async function loadHouseholdMembers() {
   const snapshot = await getDocs(query(collection(db, 'members'), orderBy('displayOrder')));

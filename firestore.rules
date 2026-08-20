@@ -22,7 +22,8 @@ service cloud.firestore {
           'resetTasks',
           'completions',
           'members',
-          'settings'
+          'settings',
+          'shoppingItems'
         ];
     }
 
