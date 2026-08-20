@@ -709,6 +709,12 @@ main {
   list-style: none;
 }
 
+.calendar-empty-state {
+  padding: 18px 0;
+  color: #66736c;
+  list-style: none;
+}
+
 .event-item {
   display: grid;
   grid-template-columns: 76px 1fr;
@@ -859,6 +865,18 @@ main {
 .parent-tools-card {
   max-width: 560px;
   margin-top: 24px;
+}
+
+.calendar-connection-card {
+  max-width: 560px;
+  margin-top: 24px;
+}
+
+.calendar-connection-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 18px;
 }
 
 .signed-in-parent {

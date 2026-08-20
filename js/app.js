@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', function () {
   var activeMealInput = null;
   var familyResetSession = null;
   var familyResetTasks = [];
+  var calendarConnected = false;
 
   function formatDateKey(date) {
     var month = String(date.getMonth() + 1).padStart(2, '0');
@@ -97,6 +98,67 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     return labels[frequency] || frequency;
+  }
+
+  function renderCalendarEvents(events) {
+    var list = document.getElementById('calendar-event-list');
+    var count = document.getElementById('calendar-event-count');
+    var preview = document.getElementById('calendar-upcoming-preview');
+    var todayStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
+    var tomorrowStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() + 1);
+    var todayEvents = events.filter(function (event) {
+      return new Date(event.start) < tomorrowStart && new Date(event.end) > todayStart;
+    });
+    var upcomingEvent = events.find(function (event) {
+      return new Date(event.start) >= tomorrowStart;
+    });
+
+    list.textContent = '';
+    count.textContent = todayEvents.length + (todayEvents.length === 1 ? ' event' : ' events');
+    if (todayEvents.length === 0) {
+      var empty = document.createElement('li');
+      empty.className = 'calendar-empty-state';
+      empty.textContent = 'No events today.';
+      list.appendChild(empty);
+    }
+
+    todayEvents.forEach(function (event) {
+      var item = document.createElement('li');
+      var time = document.createElement('time');
+      var details = document.createElement('div');
+      var name = document.createElement('p');
+      var calendarName = document.createElement('p');
+      var start = new Date(event.start);
+
+      item.className = 'event-item';
+      time.className = 'event-time';
+      time.dateTime = event.start;
+      time.textContent = event.allDay ? 'All day' : new Intl.DateTimeFormat('en-US', {
+        hour: 'numeric', minute: '2-digit'
+      }).format(start);
+      name.className = 'event-name';
+      name.textContent = event.summary;
+      calendarName.className = 'event-owner';
+      calendarName.textContent = event.calendarName;
+      details.appendChild(name);
+      details.appendChild(calendarName);
+      item.appendChild(time);
+      item.appendChild(details);
+      list.appendChild(item);
+    });
+
+    if (!upcomingEvent) {
+      preview.textContent = 'No upcoming events in the next seven days.';
+      return;
+    }
+
+    var upcomingDate = new Date(upcomingEvent.start);
+    var dayDifference = getCalendarDayNumber(upcomingDate) - getCalendarDayNumber(currentDate);
+    var dayLabel = dayDifference === 1 ? 'Tomorrow' : new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(upcomingDate);
+    var timeLabel = upcomingEvent.allDay ? 'All day' : new Intl.DateTimeFormat('en-US', {
+      hour: 'numeric', minute: '2-digit'
+    }).format(upcomingDate);
+    preview.textContent = dayLabel + ': ' + upcomingEvent.summary + ' — ' + timeLabel;
   }
 
   function renderWeeklyMeals() {
@@ -273,12 +335,15 @@ document.addEventListener('DOMContentLoaded', function () {
     var openProfileChores = profileChores.filter(function (chore) {
       return !isCompletedOnDate(chore.id, currentDate);
     });
+    var openDueChores = dueChores.filter(function (chore) {
+      return !isCompletedOnDate(chore.id, currentDate);
+    });
     var completedCount = profileChores.length - openProfileChores.length;
 
     renderChoreList('home-chore-list', profileChores, sampleData.members, sampleData.overrides);
-    renderChoreList('today-chore-list', profileChores, sampleData.members, sampleData.overrides);
+    renderChoreList('today-chore-list', dueChores, sampleData.members, sampleData.overrides);
     homeCount.textContent = completedCount + ' of ' + profileChores.length + ' done';
-    todayCount.textContent = openProfileChores.length + ' chores due';
+    todayCount.textContent = openDueChores.length + (openDueChores.length === 1 ? ' chore due' : ' chores due');
   }
 
   function renderChoresByRoom() {
@@ -922,6 +987,15 @@ document.addEventListener('DOMContentLoaded', function () {
       familyResetTasks = tasks;
       renderFamilyReset();
     },
+    setCalendarEvents: function (events) {
+      renderCalendarEvents(events);
+    },
+    setCalendarConnectionState: function (isConnected, message) {
+      calendarConnected = isConnected;
+      document.getElementById('connect-calendar-button').hidden = isConnected || !parentModeActive;
+      document.getElementById('refresh-calendar-button').hidden = !isConnected;
+      document.getElementById('calendar-connection-status').textContent = message;
+    },
     setParentPinConfigured: function (isConfigured) {
       var setupForm = document.getElementById('parent-pin-form');
       var unlockForm = document.getElementById('parent-pin-unlock-form');
@@ -966,6 +1040,7 @@ document.addEventListener('DOMContentLoaded', function () {
         control.hidden = !isActive;
       });
       if (!isActive) closeChoreEditor();
+      document.getElementById('connect-calendar-button').hidden = !isActive || calendarConnected;
       renderWeeklyMeals();
       renderMealFavorites();
       renderFamilyReset();

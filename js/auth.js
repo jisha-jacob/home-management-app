@@ -1,5 +1,6 @@
 import {
   GoogleAuthProvider,
+  reauthenticateWithPopup,
   signInWithPopup,
   signOut
 } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-auth.js";
@@ -42,6 +43,84 @@ const changeParentPinButton = document.getElementById('change-parent-pin-button'
 const changeParentPinStatus = document.getElementById('change-parent-pin-status');
 const appNavigation = document.querySelector('.app-navigation');
 const app = document.getElementById('app');
+const connectCalendarButton = document.getElementById('connect-calendar-button');
+const refreshCalendarButton = document.getElementById('refresh-calendar-button');
+let calendarAccessToken = null;
+
+async function fetchGoogleJson(url) {
+  const response = await fetch(url, {
+    headers: { Authorization: 'Bearer ' + calendarAccessToken }
+  });
+  const body = await response.json();
+
+  if (!response.ok) {
+    throw new Error(body.error && body.error.message ? body.error.message : 'Google Calendar request failed.');
+  }
+
+  return body;
+}
+
+function calendarDateValue(value) {
+  if (value.dateTime) return value.dateTime;
+
+  const parts = value.date.split('-');
+  return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2])).toISOString();
+}
+
+async function loadGoogleCalendar() {
+  if (!calendarAccessToken) return;
+
+  refreshCalendarButton.disabled = true;
+  window.homeManagementApp.setCalendarConnectionState(true, 'Refreshing Google Calendar...');
+
+  try {
+    const calendarList = await fetchGoogleJson(
+      'https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=250&showHidden=false'
+    );
+    const dayStart = new Date();
+    dayStart.setHours(0, 0, 0, 0);
+    const rangeEnd = new Date(dayStart.getFullYear(), dayStart.getMonth(), dayStart.getDate() + 8);
+    const readableCalendars = (calendarList.items || []).filter(function (calendar) {
+      return calendar.accessRole !== 'freeBusyReader';
+    });
+    const eventLists = await Promise.all(readableCalendars.map(async function (calendar) {
+      const parameters = new URLSearchParams({
+        timeMin: dayStart.toISOString(),
+        timeMax: rangeEnd.toISOString(),
+        singleEvents: 'true',
+        orderBy: 'startTime',
+        maxResults: '100'
+      });
+      const data = await fetchGoogleJson(
+        'https://www.googleapis.com/calendar/v3/calendars/' + encodeURIComponent(calendar.id) + '/events?' + parameters
+      );
+
+      return (data.items || []).filter(function (event) {
+        return event.status !== 'cancelled' && event.start && event.end;
+      }).map(function (event) {
+        return {
+          id: calendar.id + ':' + event.id,
+          summary: event.summary || 'Untitled event',
+          calendarName: calendar.summaryOverride || calendar.summary || 'Google Calendar',
+          start: calendarDateValue(event.start),
+          end: calendarDateValue(event.end),
+          allDay: Boolean(event.start.date)
+        };
+      });
+    }));
+    const events = eventLists.flat().sort(function (firstEvent, secondEvent) {
+      return new Date(firstEvent.start) - new Date(secondEvent.start);
+    });
+
+    window.homeManagementApp.setCalendarEvents(events);
+    window.homeManagementApp.setCalendarConnectionState(true, 'Connected · ' + events.length + ' events loaded');
+  } catch (error) {
+    calendarAccessToken = null;
+    window.homeManagementApp.setCalendarConnectionState(false, 'Calendar could not be refreshed: ' + error.message);
+  } finally {
+    refreshCalendarButton.disabled = false;
+  }
+}
 
 function showSignedOut(message) {
   authMessage.textContent = message || 'Sign in with an approved parent account to continue.';
@@ -68,6 +147,7 @@ async function showApp(user) {
   await loadMealFavorites();
   await loadCurrentFamilyReset();
   await loadParentModeSettings();
+  window.homeManagementApp.setCalendarConnectionState(false, 'Unlock Parent Mode to connect Google Calendar.');
   authScreen.hidden = true;
   appNavigation.hidden = false;
   app.hidden = false;
@@ -95,9 +175,33 @@ signInButton.addEventListener('click', async function () {
 
 signOutButton.addEventListener('click', async function () {
   window.homeManagementData.stopSync();
+  calendarAccessToken = null;
   await signOut(auth);
   showSignedOut('You have signed out.');
 });
+
+connectCalendarButton.addEventListener('click', async function () {
+  const provider = new GoogleAuthProvider();
+  provider.addScope('https://www.googleapis.com/auth/calendar.readonly');
+  provider.setCustomParameters({ prompt: 'consent' });
+  connectCalendarButton.disabled = true;
+  window.homeManagementApp.setCalendarConnectionState(false, 'Opening Google Calendar authorization...');
+
+  try {
+    const result = await reauthenticateWithPopup(auth.currentUser, provider);
+    const credential = GoogleAuthProvider.credentialFromResult(result);
+
+    if (!credential || !credential.accessToken) throw new Error('Google did not return a Calendar access token.');
+    calendarAccessToken = credential.accessToken;
+    await loadGoogleCalendar();
+  } catch (error) {
+    window.homeManagementApp.setCalendarConnectionState(false, 'Calendar connection failed: ' + error.message);
+  } finally {
+    connectCalendarButton.disabled = false;
+  }
+});
+
+refreshCalendarButton.addEventListener('click', loadGoogleCalendar);
 
 parentPinForm.addEventListener('submit', async function (event) {
   event.preventDefault();

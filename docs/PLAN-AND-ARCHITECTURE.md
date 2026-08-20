@@ -1572,6 +1572,19 @@ Approximately 2–4 weeks.
 
 Possible later additions:
 
+## Persistent Google Calendar Connection
+
+Revisit after the initial real-world trial. The Phase 10 browser-only connection uses a short-lived access token, so refreshing the app or returning after the token expires may require reconnecting Google Calendar.
+
+Evaluate a secure server-backed OAuth flow that can:
+
+- Keep the Calendar connection active across refreshes and overnight use
+- Refresh expired Google access tokens without parent interaction
+- Let a parent disconnect or connect a different Google Calendar account from the More page
+- Refresh the displayed day automatically after midnight
+
+Before implementation, confirm Firebase Blaze billing requirements, expected operating cost, secure refresh-token storage, and the Google OAuth callback configuration.
+
 ## Rewards / Gamification
 Revisit after approximately one month of actual use.
 

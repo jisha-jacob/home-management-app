@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Home Management App</title>
-  <link rel="stylesheet" href="css/styles.css?v=20260820-6">
+  <link rel="stylesheet" href="css/styles.css?v=20260820-7">
 </head>
 <body>
   <section class="auth-screen" id="auth-screen" aria-labelledby="auth-title">
@@ -48,28 +48,15 @@
         <section class="dashboard-card calendar-card" aria-labelledby="calendar-title">
           <div class="card-heading">
             <h2 id="calendar-title">Today&rsquo;s Calendar</h2>
-            <span class="event-count">2 events</span>
+            <span class="event-count" id="calendar-event-count">Not connected</span>
           </div>
-          <ol class="event-list">
-            <li class="event-item">
-              <time class="event-time" datetime="09:00">9:00 AM</time>
-              <div>
-                <p class="event-name">Mom&rsquo;s course time</p>
-                <p class="event-owner">Mom</p>
-              </div>
-            </li>
-            <li class="event-item">
-              <time class="event-time" datetime="15:15">3:15 PM</time>
-              <div>
-                <p class="event-name">School pickup</p>
-                <p class="event-owner">Family</p>
-              </div>
-            </li>
+          <ol class="event-list" id="calendar-event-list">
+            <li class="calendar-empty-state">Connect Google Calendar under More to show today&rsquo;s events.</li>
           </ol>
         </section>
         <section class="upcoming-preview" aria-labelledby="upcoming-title">
           <h2 id="upcoming-title">Coming up</h2>
-          <p><strong>Tomorrow:</strong> Dentist <span aria-hidden="true">&mdash;</span> <time datetime="10:30">10:30 AM</time></p>
+          <p id="calendar-upcoming-preview">No calendar connection yet.</p>
         </section>
       </div>
       <section class="dashboard-card chores-card" aria-labelledby="chores-title">
@@ -402,10 +389,19 @@
         </form>
         <p class="form-status" id="change-parent-pin-status" role="status"></p>
       </section>
+      <section class="dashboard-card calendar-connection-card" aria-labelledby="calendar-connection-title">
+        <h2 id="calendar-connection-title">Google Calendar</h2>
+        <p>Show a combined, read-only view of calendars available to the signed-in parent.</p>
+        <div class="calendar-connection-actions">
+          <button class="primary-action parent-only-control" id="connect-calendar-button" type="button" hidden>Connect Google Calendar</button>
+          <button class="secondary-action" id="refresh-calendar-button" type="button" hidden>Refresh Calendar</button>
+        </div>
+        <p class="form-status" id="calendar-connection-status" role="status">Unlock Parent Mode to connect Google Calendar.</p>
+      </section>
     </section>
   </main>
   <script src="data/sample-data.js"></script>
-  <script src="js/app.js?v=20260820-6"></script>
-  <script type="module" src="js/auth-loader.js?v=20260820-6"></script>
+  <script src="js/app.js?v=20260820-8"></script>
+  <script type="module" src="js/auth-loader.js?v=20260820-7"></script>
 </body>
 </html>
