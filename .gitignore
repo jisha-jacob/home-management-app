@@ -2,3 +2,5 @@
 firebase-debug.log
 .chrome-test/
 .edge-test/
+functions/node_modules/
+functions/.secret.local

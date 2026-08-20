@@ -1,15 +1,16 @@
 import {
   GoogleAuthProvider,
-  reauthenticateWithPopup,
   signInWithPopup,
   signOut
 } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-auth.js";
-import { auth } from "./firebase-config.js?v=20260819-3";
+import { httpsCallable } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-functions.js";
+import { auth, functions } from "./firebase-config.js?v=20260820-13";
 import {
   loadActiveChores,
   loadCurrentWeekMeals,
   loadCurrentFamilyReset,
   loadHouseholdMembers,
+  loadHouseholdContent,
   loadMealFavorites,
   loadParentModeSettings,
   loadTodayCompletions,
@@ -17,7 +18,7 @@ import {
   loadTodayOverrides,
   saveParentPin,
   verifyParentPin
-} from "./firestore-data.js?v=20260820-6";
+} from "./firestore-data.js?v=20260820-11";
 
 const approvedParentAccounts = {
   'jisha18@gmail.com': 'Mom',
@@ -45,81 +46,48 @@ const appNavigation = document.querySelector('.app-navigation');
 const app = document.getElementById('app');
 const connectCalendarButton = document.getElementById('connect-calendar-button');
 const refreshCalendarButton = document.getElementById('refresh-calendar-button');
-let calendarAccessToken = null;
-
-async function fetchGoogleJson(url) {
-  const response = await fetch(url, {
-    headers: { Authorization: 'Bearer ' + calendarAccessToken }
-  });
-  const body = await response.json();
-
-  if (!response.ok) {
-    throw new Error(body.error && body.error.message ? body.error.message : 'Google Calendar request failed.');
-  }
-
-  return body;
-}
-
-function calendarDateValue(value) {
-  if (value.dateTime) return value.dateTime;
-
-  const parts = value.date.split('-');
-  return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2])).toISOString();
-}
+const disconnectCalendarButton = document.getElementById('disconnect-calendar-button');
+const startCalendarConnection = httpsCallable(functions, 'startCalendarConnection');
+const getCalendarStatus = httpsCallable(functions, 'getCalendarStatus');
+const getCalendarEvents = httpsCallable(functions, 'getCalendarEvents');
+const disconnectCalendar = httpsCallable(functions, 'disconnectCalendar');
 
 async function loadGoogleCalendar() {
-  if (!calendarAccessToken) return;
-
   refreshCalendarButton.disabled = true;
   window.homeManagementApp.setCalendarConnectionState(true, 'Refreshing Google Calendar...');
 
   try {
-    const calendarList = await fetchGoogleJson(
-      'https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=250&showHidden=false'
-    );
     const dayStart = new Date();
     dayStart.setHours(0, 0, 0, 0);
     const rangeEnd = new Date(dayStart.getFullYear(), dayStart.getMonth(), dayStart.getDate() + 8);
-    const readableCalendars = (calendarList.items || []).filter(function (calendar) {
-      return calendar.accessRole !== 'freeBusyReader';
+    const result = await getCalendarEvents({
+      timeMin: dayStart.toISOString(),
+      timeMax: rangeEnd.toISOString()
     });
-    const eventLists = await Promise.all(readableCalendars.map(async function (calendar) {
-      const parameters = new URLSearchParams({
-        timeMin: dayStart.toISOString(),
-        timeMax: rangeEnd.toISOString(),
-        singleEvents: 'true',
-        orderBy: 'startTime',
-        maxResults: '100'
-      });
-      const data = await fetchGoogleJson(
-        'https://www.googleapis.com/calendar/v3/calendars/' + encodeURIComponent(calendar.id) + '/events?' + parameters
-      );
-
-      return (data.items || []).filter(function (event) {
-        return event.status !== 'cancelled' && event.start && event.end;
-      }).map(function (event) {
-        return {
-          id: calendar.id + ':' + event.id,
-          summary: event.summary || 'Untitled event',
-          calendarName: calendar.summaryOverride || calendar.summary || 'Google Calendar',
-          start: calendarDateValue(event.start),
-          end: calendarDateValue(event.end),
-          allDay: Boolean(event.start.date)
-        };
-      });
-    }));
-    const events = eventLists.flat().sort(function (firstEvent, secondEvent) {
-      return new Date(firstEvent.start) - new Date(secondEvent.start);
-    });
+    const events = result.data.events || [];
 
     window.homeManagementApp.setCalendarEvents(events);
     window.homeManagementApp.setCalendarConnectionState(true, 'Connected · ' + events.length + ' events loaded');
   } catch (error) {
-    calendarAccessToken = null;
-    window.homeManagementApp.setCalendarConnectionState(false, 'Calendar could not be refreshed: ' + error.message);
+    window.homeManagementApp.setCalendarConnectionState(true, 'Calendar could not be refreshed: ' + error.message);
   } finally {
     refreshCalendarButton.disabled = false;
   }
+}
+
+async function loadCalendarConnection() {
+  const result = await getCalendarStatus();
+
+  if (!result.data.connected) {
+    window.homeManagementApp.setCalendarConnectionState(false, 'Unlock Parent Mode to connect Google Calendar.');
+    return;
+  }
+
+  window.homeManagementApp.setCalendarConnectionState(
+    true,
+    'Connected to ' + (result.data.calendarAccount || 'Google Calendar') + '. Loading events...'
+  );
+  await loadGoogleCalendar();
 }
 
 function showSignedOut(message) {
@@ -139,6 +107,7 @@ async function showApp(user) {
 
   window.homeManagementApp.setSignedInParent(approvedParentAccounts[email], email);
   await loadHouseholdMembers();
+  await loadHouseholdContent();
   await loadActiveChores();
   await loadTodayCompletions();
   await loadTodayOverrides();
@@ -147,7 +116,14 @@ async function showApp(user) {
   await loadMealFavorites();
   await loadCurrentFamilyReset();
   await loadParentModeSettings();
-  window.homeManagementApp.setCalendarConnectionState(false, 'Unlock Parent Mode to connect Google Calendar.');
+  try {
+    await loadCalendarConnection();
+  } catch (error) {
+    window.homeManagementApp.setCalendarConnectionState(
+      false,
+      'Calendar connection could not be checked: ' + error.message
+    );
+  }
   authScreen.hidden = true;
   appNavigation.hidden = false;
   app.hidden = false;
@@ -175,25 +151,17 @@ signInButton.addEventListener('click', async function () {
 
 signOutButton.addEventListener('click', async function () {
   window.homeManagementData.stopSync();
-  calendarAccessToken = null;
   await signOut(auth);
   showSignedOut('You have signed out.');
 });
 
 connectCalendarButton.addEventListener('click', async function () {
-  const provider = new GoogleAuthProvider();
-  provider.addScope('https://www.googleapis.com/auth/calendar.readonly');
-  provider.setCustomParameters({ prompt: 'consent' });
   connectCalendarButton.disabled = true;
   window.homeManagementApp.setCalendarConnectionState(false, 'Opening Google Calendar authorization...');
 
   try {
-    const result = await reauthenticateWithPopup(auth.currentUser, provider);
-    const credential = GoogleAuthProvider.credentialFromResult(result);
-
-    if (!credential || !credential.accessToken) throw new Error('Google did not return a Calendar access token.');
-    calendarAccessToken = credential.accessToken;
-    await loadGoogleCalendar();
+    const result = await startCalendarConnection();
+    window.location.assign(result.data.authorizationUrl);
   } catch (error) {
     window.homeManagementApp.setCalendarConnectionState(false, 'Calendar connection failed: ' + error.message);
   } finally {
@@ -202,6 +170,21 @@ connectCalendarButton.addEventListener('click', async function () {
 });
 
 refreshCalendarButton.addEventListener('click', loadGoogleCalendar);
+
+disconnectCalendarButton.addEventListener('click', async function () {
+  disconnectCalendarButton.disabled = true;
+  window.homeManagementApp.setCalendarConnectionState(true, 'Disconnecting Google Calendar...');
+
+  try {
+    await disconnectCalendar();
+    window.homeManagementApp.setCalendarEvents([]);
+    window.homeManagementApp.setCalendarConnectionState(false, 'Google Calendar disconnected.');
+  } catch (error) {
+    window.homeManagementApp.setCalendarConnectionState(true, 'Calendar could not be disconnected: ' + error.message);
+  } finally {
+    disconnectCalendarButton.disabled = false;
+  }
+});
 
 parentPinForm.addEventListener('submit', async function (event) {
   event.preventDefault();

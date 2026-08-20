@@ -11,8 +11,23 @@ service cloud.firestore {
         ];
     }
 
+    match /{collection}/{document} {
+      allow read, write: if isApprovedParent()
+        && collection in [
+          'chores',
+          'overrides',
+          'meals',
+          'mealFavorites',
+          'resetSessions',
+          'resetTasks',
+          'completions',
+          'members',
+          'settings'
+        ];
+    }
+
     match /{document=**} {
-      allow read, write: if isApprovedParent();
+      allow read, write: if false;
     }
   }
 }

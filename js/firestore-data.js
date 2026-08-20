@@ -11,7 +11,7 @@ import {
   where,
   writeBatch
 } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-firestore.js";
-import { db } from "./firebase-config.js?v=20260819-3";
+import { db } from "./firebase-config.js?v=20260820-13";
 
 let stopCompletionsSync = null;
 let stopMealsSync = null;
@@ -19,6 +19,7 @@ let stopWeeklyMealsSync = null;
 let stopMealFavoritesSync = null;
 let stopResetSessionSync = null;
 let stopResetTasksSync = null;
+let stopHouseholdContentSync = null;
 
 function formatDateKey(date) {
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -103,6 +104,22 @@ window.homeManagementData = {
       type: type,
       normalizedName: name.toLowerCase()
     });
+  },
+  saveHouseholdContent: async function (householdReminder, verseOfWeek) {
+    await setDoc(doc(db, 'settings', 'homeContent'), {
+      householdReminder: householdReminder,
+      verseOfWeek: verseOfWeek
+    });
+  },
+  saveMemberNames: async function (memberNames) {
+    const batch = writeBatch(db);
+
+    Object.keys(memberNames).forEach(function (memberId) {
+      batch.set(doc(db, 'members', memberId), { name: memberNames[memberId] }, { merge: true });
+    });
+
+    await batch.commit();
+    await loadHouseholdMembers();
   },
   getLastWeekMeals: async function () {
     const currentWeekStart = getWeekStart(new Date());
@@ -209,6 +226,11 @@ window.homeManagementData = {
       stopResetTasksSync();
       stopResetTasksSync = null;
     }
+
+    if (stopHouseholdContentSync) {
+      stopHouseholdContentSync();
+      stopHouseholdContentSync = null;
+    }
   }
 };
 
@@ -232,6 +254,33 @@ export async function loadParentModeSettings() {
   const isConfigured = settingsDocument.exists() && Boolean(settingsDocument.data().pinHash);
 
   window.homeManagementApp.setParentPinConfigured(isConfigured);
+}
+
+export async function loadHouseholdContent() {
+  if (stopHouseholdContentSync) stopHouseholdContentSync();
+
+  await new Promise(function (resolve, reject) {
+    let firstSnapshot = true;
+
+    stopHouseholdContentSync = onSnapshot(
+      doc(db, 'settings', 'homeContent'),
+      function (settingsDocument) {
+        const content = settingsDocument.exists() ? settingsDocument.data() : {};
+
+        window.homeManagementApp.setHouseholdContent({
+          householdReminder: content.householdReminder || '',
+          verseOfWeek: content.verseOfWeek || ''
+        });
+        if (firstSnapshot) {
+          firstSnapshot = false;
+          resolve();
+        }
+      },
+      function (error) {
+        if (firstSnapshot) reject(error);
+      }
+    );
+  });
 }
 
 export async function saveParentPin(pin) {

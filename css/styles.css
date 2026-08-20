@@ -640,12 +640,19 @@ main {
 
 .household-reminder {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 12px 20px;
+  justify-content: center;
+  gap: 6px;
   margin-top: 10px;
   border-radius: 16px;
   background: #fff1c9;
   padding: 16px 20px;
+  text-align: center;
+}
+
+.household-reminder[hidden] {
+  display: none;
 }
 
 .household-reminder h2,
@@ -661,8 +668,17 @@ main {
 }
 
 .household-reminder p {
-  font-size: 1.05rem;
+  font-size: 1.2rem;
   font-weight: 700;
+  white-space: pre-wrap;
+}
+
+.verse-of-week {
+  background: #e5f0e8;
+}
+
+.verse-of-week h2 {
+  color: #3f654d;
 }
 
 .dashboard-card {
@@ -865,6 +881,55 @@ main {
 .parent-tools-card {
   max-width: 560px;
   margin-top: 24px;
+}
+
+.household-content-card,
+.family-members-card {
+  max-width: 560px;
+  margin-top: 24px;
+}
+
+.household-content-form,
+.family-members-form,
+.family-member-fields {
+  display: grid;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.family-member-fields {
+  margin-top: 0;
+}
+
+.household-content-form label,
+.family-member-fields label {
+  display: grid;
+  gap: 8px;
+  color: #66736c;
+  font-size: 0.9rem;
+  font-weight: 650;
+}
+
+.household-content-form input,
+.family-member-fields input,
+.household-content-form textarea {
+  width: 100%;
+  border: 1px solid #aeb8b2;
+  border-radius: 12px;
+  padding: 10px 12px;
+  color: #22332b;
+  background: #ffffff;
+  font: inherit;
+}
+
+.household-content-form input,
+.family-member-fields input {
+  min-height: 48px;
+}
+
+.household-content-form textarea {
+  min-height: 96px;
+  resize: vertical;
 }
 
 .calendar-connection-card {

@@ -1,0 +1,104 @@
+{
+  "endpoints": {
+    "startCalendarConnection": {
+      "availableMemoryMb": null,
+      "timeoutSeconds": null,
+      "minInstances": null,
+      "maxInstances": null,
+      "ingressSettings": null,
+      "concurrency": null,
+      "serviceAccountEmail": null,
+      "vpc": null,
+      "platform": "gcfv2",
+      "secretEnvironmentVariables": [
+        {
+          "key": "GOOGLE_OAUTH_CLIENT"
+        }
+      ],
+      "labels": {},
+      "callableTrigger": {},
+      "entryPoint": "startCalendarConnection"
+    },
+    "calendarOAuthCallback": {
+      "availableMemoryMb": null,
+      "timeoutSeconds": null,
+      "minInstances": null,
+      "maxInstances": null,
+      "ingressSettings": null,
+      "concurrency": null,
+      "serviceAccountEmail": null,
+      "vpc": null,
+      "platform": "gcfv2",
+      "secretEnvironmentVariables": [
+        {
+          "key": "GOOGLE_OAUTH_CLIENT"
+        }
+      ],
+      "labels": {},
+      "httpsTrigger": {},
+      "entryPoint": "calendarOAuthCallback"
+    },
+    "getCalendarStatus": {
+      "availableMemoryMb": null,
+      "timeoutSeconds": null,
+      "minInstances": null,
+      "maxInstances": null,
+      "ingressSettings": null,
+      "concurrency": null,
+      "serviceAccountEmail": null,
+      "vpc": null,
+      "platform": "gcfv2",
+      "labels": {},
+      "callableTrigger": {},
+      "entryPoint": "getCalendarStatus"
+    },
+    "getCalendarEvents": {
+      "availableMemoryMb": null,
+      "timeoutSeconds": 60,
+      "minInstances": null,
+      "maxInstances": null,
+      "ingressSettings": null,
+      "concurrency": null,
+      "serviceAccountEmail": null,
+      "vpc": null,
+      "platform": "gcfv2",
+      "secretEnvironmentVariables": [
+        {
+          "key": "GOOGLE_OAUTH_CLIENT"
+        }
+      ],
+      "labels": {},
+      "callableTrigger": {},
+      "entryPoint": "getCalendarEvents"
+    },
+    "disconnectCalendar": {
+      "availableMemoryMb": null,
+      "timeoutSeconds": null,
+      "minInstances": null,
+      "maxInstances": null,
+      "ingressSettings": null,
+      "concurrency": null,
+      "serviceAccountEmail": null,
+      "vpc": null,
+      "platform": "gcfv2",
+      "secretEnvironmentVariables": [
+        {
+          "key": "GOOGLE_OAUTH_CLIENT"
+        }
+      ],
+      "labels": {},
+      "callableTrigger": {},
+      "entryPoint": "disconnectCalendar"
+    }
+  },
+  "specVersion": "v1alpha1",
+  "requiredAPIs": [],
+  "extensions": {},
+  "params": [
+    {
+      "type": "secret",
+      "name": "GOOGLE_OAUTH_CLIENT",
+      "format": "json"
+    }
+  ]
+}

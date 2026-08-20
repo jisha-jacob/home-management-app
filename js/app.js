@@ -11,6 +11,12 @@ document.addEventListener('DOMContentLoaded', function () {
   var familyResetTasks = [];
   var calendarConnected = false;
 
+  var nextMidnight = new Date();
+  nextMidnight.setHours(24, 0, 5, 0);
+  window.setTimeout(function () {
+    window.location.reload();
+  }, nextMidnight.getTime() - Date.now());
+
   function formatDateKey(date) {
     var month = String(date.getMonth() + 1).padStart(2, '0');
     var day = String(date.getDate()).padStart(2, '0');
@@ -656,7 +662,38 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+  function renderFamilyMemberEditor() {
+    var members = window.homeManagementSampleData.members;
+    var labels = {
+      mom: 'Mom',
+      dad: 'Dad',
+      'child-1': 'Child 1',
+      'child-2': 'Child 2',
+      'child-3': 'Child 3',
+      toddler: 'Toddler'
+    };
+    var container = document.getElementById('family-member-fields');
+
+    container.textContent = '';
+    Object.keys(members).sort(function (firstId, secondId) {
+      return members[firstId].displayOrder - members[secondId].displayOrder;
+    }).forEach(function (memberId) {
+      var label = document.createElement('label');
+      var input = document.createElement('input');
+
+      label.textContent = labels[memberId] || 'Family member';
+      input.type = 'text';
+      input.maxLength = 60;
+      input.required = true;
+      input.value = members[memberId].name;
+      input.dataset.memberId = memberId;
+      label.appendChild(input);
+      container.appendChild(label);
+    });
+  }
+
   populateOwnerOptions();
+  renderFamilyMemberEditor();
 
   function updateRecurrenceFields() {
     var frequency = choreFrequency.value;
@@ -920,6 +957,61 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
 
+  document.getElementById('household-content-form').addEventListener('submit', async function (event) {
+    event.preventDefault();
+    if (!parentModeActive) return;
+
+    var saveButton = document.getElementById('save-household-content-button');
+    var status = document.getElementById('household-content-status');
+    var reminder = document.getElementById('household-reminder-input').value.trim();
+    var verse = document.getElementById('verse-of-week-input').value.trim();
+
+    saveButton.disabled = true;
+    status.textContent = 'Saving Home messages...';
+
+    try {
+      await window.homeManagementData.saveHouseholdContent(reminder, verse);
+      status.textContent = 'Home messages saved.';
+    } catch (error) {
+      status.textContent = 'Could not save Home messages: ' + error.message;
+    } finally {
+      saveButton.disabled = false;
+    }
+  });
+
+  document.getElementById('family-members-form').addEventListener('submit', async function (event) {
+    event.preventDefault();
+    if (!parentModeActive) return;
+
+    var saveButton = document.getElementById('save-family-members-button');
+    var status = document.getElementById('family-members-status');
+    var memberNames = {};
+    var invalidName = false;
+
+    document.querySelectorAll('#family-member-fields [data-member-id]').forEach(function (input) {
+      var name = input.value.trim();
+      if (!name) invalidName = true;
+      memberNames[input.dataset.memberId] = name;
+    });
+
+    if (invalidName) {
+      status.textContent = 'Enter a display name for every family member.';
+      return;
+    }
+
+    saveButton.disabled = true;
+    status.textContent = 'Saving display names...';
+
+    try {
+      await window.homeManagementData.saveMemberNames(memberNames);
+      status.textContent = 'Display names saved.';
+    } catch (error) {
+      status.textContent = 'Could not save display names: ' + error.message;
+    } finally {
+      saveButton.disabled = false;
+    }
+  });
+
   window.homeManagementApp = {
     setMembers: function (members) {
       var sampleData = window.homeManagementSampleData;
@@ -933,7 +1025,9 @@ document.addEventListener('DOMContentLoaded', function () {
       });
 
       populateOwnerOptions();
+      renderFamilyMemberEditor();
       renderTodayChores();
+      renderChoresByRoom();
       renderFamilyReset();
     },
     setChores: function (chores) {
@@ -987,6 +1081,19 @@ document.addEventListener('DOMContentLoaded', function () {
       familyResetTasks = tasks;
       renderFamilyReset();
     },
+    setHouseholdContent: function (content) {
+      var reminder = (content.householdReminder || '').trim();
+      var verse = (content.verseOfWeek || '').trim();
+      var reminderBanner = document.getElementById('household-reminder-banner');
+      var verseBanner = document.getElementById('verse-of-week-banner');
+
+      document.getElementById('household-reminder-text').textContent = reminder;
+      document.getElementById('verse-of-week-text').textContent = verse;
+      document.getElementById('household-reminder-input').value = reminder;
+      document.getElementById('verse-of-week-input').value = verse;
+      reminderBanner.hidden = !reminder;
+      verseBanner.hidden = !verse;
+    },
     setCalendarEvents: function (events) {
       renderCalendarEvents(events);
     },
@@ -994,6 +1101,7 @@ document.addEventListener('DOMContentLoaded', function () {
       calendarConnected = isConnected;
       document.getElementById('connect-calendar-button').hidden = isConnected || !parentModeActive;
       document.getElementById('refresh-calendar-button').hidden = !isConnected;
+      document.getElementById('disconnect-calendar-button').hidden = !isConnected || !parentModeActive;
       document.getElementById('calendar-connection-status').textContent = message;
     },
     setParentPinConfigured: function (isConfigured) {
@@ -1041,6 +1149,7 @@ document.addEventListener('DOMContentLoaded', function () {
       });
       if (!isActive) closeChoreEditor();
       document.getElementById('connect-calendar-button').hidden = !isActive || calendarConnected;
+      document.getElementById('disconnect-calendar-button').hidden = !isActive || !calendarConnected;
       renderWeeklyMeals();
       renderMealFavorites();
       renderFamilyReset();

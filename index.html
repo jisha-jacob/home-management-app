@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Home Management App</title>
-  <link rel="stylesheet" href="css/styles.css?v=20260820-7">
+  <link rel="stylesheet" href="css/styles.css?v=20260820-11">
 </head>
 <body>
   <section class="auth-screen" id="auth-screen" aria-labelledby="auth-title">
@@ -30,6 +30,14 @@
     <header class="dashboard-header">
       <time class="dashboard-date" id="today-date">TODAY</time>
     </header>
+    <aside class="household-reminder" id="household-reminder-banner" aria-labelledby="reminder-title" hidden>
+      <h2 id="reminder-title">Household reminder</h2>
+      <p id="household-reminder-text"></p>
+    </aside>
+    <aside class="household-reminder verse-of-week" id="verse-of-week-banner" aria-labelledby="verse-title" hidden>
+      <h2 id="verse-title">Verse of the week</h2>
+      <p id="verse-of-week-text"></p>
+    </aside>
     <nav class="profile-list" aria-label="Choose a family profile">
       <button class="profile-button profile-family" type="button" data-profile-target="family" aria-pressed="true">Family</button>
       <button class="profile-button profile-mom" type="button" data-profile-target="mom" aria-pressed="false">Mom</button>
@@ -39,10 +47,6 @@
       <button class="profile-button profile-child-three" type="button" data-profile-target="child-3" aria-pressed="false">Child 3</button>
       <button class="profile-button profile-toddler" type="button" data-profile-target="toddler" aria-pressed="false">Toddler</button>
     </nav>
-    <aside class="household-reminder" aria-labelledby="reminder-title">
-      <h2 id="reminder-title">Household reminder</h2>
-      <p>Laundry tonight</p>
-    </aside>
     <div class="dashboard-grid">
       <div class="calendar-column">
         <section class="dashboard-card calendar-card" aria-labelledby="calendar-title">
@@ -389,19 +393,45 @@
         </form>
         <p class="form-status" id="change-parent-pin-status" role="status"></p>
       </section>
+      <section class="dashboard-card household-content-card parent-only-control" aria-labelledby="household-content-title" hidden>
+        <h2 id="household-content-title">Home Page Messages</h2>
+        <p>Add a household reminder or weekly verse. Leave a field empty to hide that section on Home.</p>
+        <form class="household-content-form" id="household-content-form">
+          <label>
+            Household reminder
+            <input id="household-reminder-input" type="text" maxlength="160" placeholder="For example: Laundry tonight">
+          </label>
+          <label>
+            Verse of the week
+            <textarea id="verse-of-week-input" rows="3" maxlength="500" placeholder="Enter the verse and reference"></textarea>
+          </label>
+          <button class="primary-action" id="save-household-content-button" type="submit">Save Home Messages</button>
+        </form>
+        <p class="form-status" id="household-content-status" role="status"></p>
+      </section>
+      <section class="dashboard-card family-members-card parent-only-control" aria-labelledby="family-members-title" hidden>
+        <h2 id="family-members-title">Family Members</h2>
+        <p>These display names are stored privately in Firestore and are not added to the app&rsquo;s source code.</p>
+        <form class="family-members-form" id="family-members-form">
+          <div class="family-member-fields" id="family-member-fields"></div>
+          <button class="primary-action" id="save-family-members-button" type="submit">Save Display Names</button>
+        </form>
+        <p class="form-status" id="family-members-status" role="status"></p>
+      </section>
       <section class="dashboard-card calendar-connection-card" aria-labelledby="calendar-connection-title">
         <h2 id="calendar-connection-title">Google Calendar</h2>
         <p>Show a combined, read-only view of calendars available to the signed-in parent.</p>
         <div class="calendar-connection-actions">
           <button class="primary-action parent-only-control" id="connect-calendar-button" type="button" hidden>Connect Google Calendar</button>
           <button class="secondary-action" id="refresh-calendar-button" type="button" hidden>Refresh Calendar</button>
+          <button class="secondary-action parent-only-control" id="disconnect-calendar-button" type="button" hidden>Disconnect / Change Calendar</button>
         </div>
         <p class="form-status" id="calendar-connection-status" role="status">Unlock Parent Mode to connect Google Calendar.</p>
       </section>
     </section>
   </main>
   <script src="data/sample-data.js"></script>
-  <script src="js/app.js?v=20260820-8"></script>
-  <script type="module" src="js/auth-loader.js?v=20260820-7"></script>
+  <script src="js/app.js?v=20260820-12"></script>
+  <script type="module" src="js/auth-loader.js?v=20260820-13"></script>
 </body>
 </html>
