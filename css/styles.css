@@ -474,6 +474,19 @@ main {
   margin-top: 20px;
 }
 
+.reset-start-card {
+  margin-top: 20px;
+  text-align: center;
+}
+
+.reset-start-card h2 {
+  margin-top: 0;
+}
+
+.reset-start-card[hidden] {
+  display: none;
+}
+
 .reset-group {
   margin-top: 0;
   border-top: 6px solid var(--profile-color);
@@ -505,6 +518,28 @@ main {
 .reset-task input:checked + span {
   opacity: 0.55;
   text-decoration: line-through;
+}
+
+.reset-task-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  border-top: 1px solid #edf0ed;
+}
+
+.reset-task-row .reset-task {
+  border-top: 0;
+}
+
+.reset-owner-select {
+  max-width: 150px;
+  min-height: 40px;
+  border: 1px solid #aeb8b2;
+  border-radius: 10px;
+  padding: 7px 9px;
+  background: #fff;
+  font: inherit;
 }
 
 .more-placeholder {

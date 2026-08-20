@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Home Management App</title>
-  <link rel="stylesheet" href="css/styles.css?v=20260820-5">
+  <link rel="stylesheet" href="css/styles.css?v=20260820-6">
 </head>
 <body>
   <section class="auth-screen" id="auth-screen" aria-labelledby="auth-title">
@@ -344,45 +344,16 @@
           <p class="screen-kicker">Weekly household reset</p>
           <h1>Family Reset</h1>
         </div>
-        <strong class="reset-count">6 of 13 complete</strong>
+        <strong class="reset-count" id="reset-count">Not started</strong>
       </header>
-      <progress class="reset-progress" value="6" max="13">6 of 13 complete</progress>
-      <div class="reset-group-grid">
-        <section class="dashboard-card reset-group profile-mom" aria-labelledby="reset-mom-title">
-          <h2 id="reset-mom-title">Mom</h2>
-          <label class="reset-task"><input type="checkbox"><span>Master bathroom</span></label>
-          <label class="reset-task"><input type="checkbox" checked><span>Fridge check</span></label>
-        </section>
-        <section class="dashboard-card reset-group profile-dad" aria-labelledby="reset-dad-title">
-          <h2 id="reset-dad-title">Dad</h2>
-          <label class="reset-task"><input type="checkbox"><span>Clean stovetop</span></label>
-          <label class="reset-task"><input type="checkbox" checked><span>Vacuum stairs</span></label>
-        </section>
-        <section class="dashboard-card reset-group profile-child-one" aria-labelledby="reset-child-title">
-          <h2 id="reset-child-title">Child 1</h2>
-          <label class="reset-task"><input type="checkbox"><span>Basement vacuum</span></label>
-          <label class="reset-task"><input type="checkbox" checked><span>Reset bedroom</span></label>
-        </section>
-        <section class="dashboard-card reset-group profile-child-two" aria-labelledby="reset-child-two-title">
-          <h2 id="reset-child-two-title">Child 2</h2>
-          <label class="reset-task"><input type="checkbox"><span>Wipe dining table</span></label>
-          <label class="reset-task"><input type="checkbox" checked><span>Put clothes away</span></label>
-        </section>
-        <section class="dashboard-card reset-group profile-child-three" aria-labelledby="reset-child-three-title">
-          <h2 id="reset-child-three-title">Child 3</h2>
-          <label class="reset-task"><input type="checkbox"><span>Vacuum dining area</span></label>
-          <label class="reset-task"><input type="checkbox" checked><span>Clear bedroom floor</span></label>
-        </section>
-        <section class="dashboard-card reset-group profile-toddler" aria-labelledby="reset-toddler-title">
-          <h2 id="reset-toddler-title">Toddler</h2>
-          <label class="reset-task"><input type="checkbox" checked><span>Put toys away</span></label>
-        </section>
-        <section class="dashboard-card reset-group profile-family" aria-labelledby="reset-family-title">
-          <h2 id="reset-family-title">Family</h2>
-          <label class="reset-task"><input type="checkbox"><span>Quick whole-house pickup</span></label>
-          <label class="reset-task" data-family-reset-chore-id="take-out-recycling"><input type="checkbox"><span>Take out recycling</span></label>
-        </section>
-      </div>
+      <progress class="reset-progress" id="reset-progress" value="0" max="1">0 complete</progress>
+      <section class="dashboard-card reset-start-card" id="reset-start-card">
+        <h2>Ready for this week’s reset?</h2>
+        <p id="reset-start-description">Unlock Parent Mode to start a session from active chores marked Family Reset.</p>
+        <button class="primary-action parent-only-control" id="start-family-reset-button" type="button" hidden>Start Family Reset</button>
+        <p class="form-status" id="family-reset-status" role="status"></p>
+      </section>
+      <div class="reset-group-grid" id="reset-group-grid"></div>
     </section>
     <section class="app-screen" id="more-screen" data-screen="more" hidden>
       <header class="screen-header">
@@ -434,7 +405,7 @@
     </section>
   </main>
   <script src="data/sample-data.js"></script>
-  <script src="js/app.js?v=20260820-5"></script>
-  <script type="module" src="js/auth-loader.js?v=20260820-5"></script>
+  <script src="js/app.js?v=20260820-6"></script>
+  <script type="module" src="js/auth-loader.js?v=20260820-6"></script>
 </body>
 </html>

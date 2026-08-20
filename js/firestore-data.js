@@ -17,6 +17,8 @@ let stopCompletionsSync = null;
 let stopMealsSync = null;
 let stopWeeklyMealsSync = null;
 let stopMealFavoritesSync = null;
+let stopResetSessionSync = null;
+let stopResetTasksSync = null;
 
 function formatDateKey(date) {
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -135,6 +137,33 @@ window.homeManagementData = {
       };
     });
   },
+  startFamilyReset: async function (chores) {
+    const sessionId = formatDateKey(getWeekStart(new Date()));
+    const batch = writeBatch(db);
+
+    batch.set(doc(db, 'resetSessions', sessionId), {
+      weekStart: sessionId,
+      started: true,
+      startedAt: new Date().toISOString()
+    });
+    chores.forEach(function (chore) {
+      batch.set(doc(db, 'resetTasks', sessionId + '_' + chore.id), {
+        sessionId: sessionId,
+        choreId: chore.id,
+        name: chore.name,
+        assignedTo: chore.defaultOwner || 'unassigned',
+        completed: false
+      });
+    });
+
+    await batch.commit();
+  },
+  saveResetTaskCompletion: async function (taskId, completed) {
+    await setDoc(doc(db, 'resetTasks', taskId), { completed: completed }, { merge: true });
+  },
+  reassignResetTask: async function (taskId, assignedTo) {
+    await setDoc(doc(db, 'resetTasks', taskId), { assignedTo: assignedTo }, { merge: true });
+  },
   saveChoreCompletion: async function (choreId, date, completed, completedBy) {
     const completionReference = doc(db, 'completions', date + '_' + choreId);
 
@@ -169,6 +198,16 @@ window.homeManagementData = {
     if (stopMealFavoritesSync) {
       stopMealFavoritesSync();
       stopMealFavoritesSync = null;
+    }
+
+    if (stopResetSessionSync) {
+      stopResetSessionSync();
+      stopResetSessionSync = null;
+    }
+
+    if (stopResetTasksSync) {
+      stopResetTasksSync();
+      stopResetTasksSync = null;
     }
   }
 };
@@ -374,4 +413,52 @@ export async function loadMealFavorites() {
       }
     );
   });
+}
+
+export async function loadCurrentFamilyReset() {
+  const sessionId = formatDateKey(getWeekStart(new Date()));
+
+  if (stopResetSessionSync) stopResetSessionSync();
+  if (stopResetTasksSync) stopResetTasksSync();
+
+  await Promise.all([
+    new Promise(function (resolve, reject) {
+      let firstSnapshot = true;
+      stopResetSessionSync = onSnapshot(
+        doc(db, 'resetSessions', sessionId),
+        function (sessionDocument) {
+          window.homeManagementApp.setFamilyResetSession(
+            sessionDocument.exists() ? Object.assign({ id: sessionDocument.id }, sessionDocument.data()) : null
+          );
+          if (firstSnapshot) {
+            firstSnapshot = false;
+            resolve();
+          }
+        },
+        function (error) {
+          if (firstSnapshot) reject(error);
+        }
+      );
+    }),
+    new Promise(function (resolve, reject) {
+      let firstSnapshot = true;
+      stopResetTasksSync = onSnapshot(
+        query(collection(db, 'resetTasks'), where('sessionId', '==', sessionId)),
+        function (snapshot) {
+          const tasks = [];
+          snapshot.forEach(function (taskDocument) {
+            tasks.push(Object.assign({ id: taskDocument.id }, taskDocument.data()));
+          });
+          window.homeManagementApp.setFamilyResetTasks(tasks);
+          if (firstSnapshot) {
+            firstSnapshot = false;
+            resolve();
+          }
+        },
+        function (error) {
+          if (firstSnapshot) reject(error);
+        }
+      );
+    })
+  ]);
 }

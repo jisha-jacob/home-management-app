@@ -7,6 +7,8 @@ document.addEventListener('DOMContentLoaded', function () {
   var weeklyMeals = [];
   var mealFavorites = [];
   var activeMealInput = null;
+  var familyResetSession = null;
+  var familyResetTasks = [];
 
   function formatDateKey(date) {
     var month = String(date.getMonth() + 1).padStart(2, '0');
@@ -338,23 +340,137 @@ document.addEventListener('DOMContentLoaded', function () {
 
   renderTodayChores();
 
-  function applyFamilyResetFlags() {
-    var sampleData = window.homeManagementSampleData;
-    var resetChoreRows = document.querySelectorAll('[data-family-reset-chore-id]');
+  function resetOwnerDetails(ownerId) {
+    var member = window.homeManagementSampleData.members[ownerId];
 
-    if (!sampleData) return;
-
-    resetChoreRows.forEach(function (row) {
-      var choreId = row.getAttribute('data-family-reset-chore-id');
-      var chore = sampleData.chores.find(function (item) {
-        return item.id === choreId;
-      });
-
-      row.hidden = !chore || !chore.familyReset;
-    });
+    if (member) return member;
+    if (ownerId === 'family') return { name: 'Family', colorClass: 'profile-family', displayOrder: 90 };
+    return { name: 'Unassigned', colorClass: 'profile-family', displayOrder: 99 };
   }
 
-  applyFamilyResetFlags();
+  function renderFamilyReset() {
+    var grid = document.getElementById('reset-group-grid');
+    var startCard = document.getElementById('reset-start-card');
+    var count = document.getElementById('reset-count');
+    var progress = document.getElementById('reset-progress');
+    var description = document.getElementById('reset-start-description');
+    var groups = {};
+
+    grid.textContent = '';
+    if (!familyResetSession) {
+      startCard.hidden = false;
+      count.textContent = 'Not started';
+      progress.value = 0;
+      progress.max = 1;
+      description.textContent = parentModeActive
+        ? 'Start a session from active chores marked Family Reset.'
+        : 'Unlock Parent Mode to start a session from active chores marked Family Reset.';
+      return;
+    }
+
+    startCard.hidden = true;
+    familyResetTasks.forEach(function (task) {
+      var ownerId = task.assignedTo || 'unassigned';
+      if (!groups[ownerId]) groups[ownerId] = [];
+      groups[ownerId].push(task);
+    });
+
+    Object.keys(groups).sort(function (firstOwner, secondOwner) {
+      return resetOwnerDetails(firstOwner).displayOrder - resetOwnerDetails(secondOwner).displayOrder;
+    }).forEach(function (ownerId) {
+      var owner = resetOwnerDetails(ownerId);
+      var card = document.createElement('section');
+      var heading = document.createElement('h2');
+
+      card.className = 'dashboard-card reset-group ' + owner.colorClass;
+      heading.textContent = owner.name;
+      card.appendChild(heading);
+
+      groups[ownerId].sort(function (firstTask, secondTask) {
+        return firstTask.name.localeCompare(secondTask.name);
+      }).forEach(function (task) {
+        var row = document.createElement('div');
+        var label = document.createElement('label');
+        var checkbox = document.createElement('input');
+        var name = document.createElement('span');
+        var ownerSelect = document.createElement('select');
+
+        row.className = 'reset-task-row';
+        label.className = 'reset-task';
+        checkbox.type = 'checkbox';
+        checkbox.checked = Boolean(task.completed);
+        checkbox.addEventListener('change', async function () {
+          checkbox.disabled = true;
+          try {
+            await window.homeManagementData.saveResetTaskCompletion(task.id, checkbox.checked);
+          } catch (error) {
+            checkbox.checked = !checkbox.checked;
+            document.getElementById('family-reset-status').textContent = 'Could not update the task: ' + error.message;
+          } finally {
+            checkbox.disabled = false;
+          }
+        });
+        name.textContent = task.name;
+        label.appendChild(checkbox);
+        label.appendChild(name);
+
+        ownerSelect.className = 'reset-owner-select parent-only-control';
+        ownerSelect.hidden = !parentModeActive;
+        ownerSelect.setAttribute('aria-label', 'Reassign ' + task.name);
+        ['unassigned', 'family'].concat(Object.keys(window.homeManagementSampleData.members)).forEach(function (memberId) {
+          addSelectOption(ownerSelect, memberId, resetOwnerDetails(memberId).name);
+        });
+        ownerSelect.value = ownerId;
+        ownerSelect.addEventListener('change', async function () {
+          ownerSelect.disabled = true;
+          try {
+            await window.homeManagementData.reassignResetTask(task.id, ownerSelect.value);
+          } catch (error) {
+            ownerSelect.value = ownerId;
+            document.getElementById('family-reset-status').textContent = 'Could not reassign the task: ' + error.message;
+          } finally {
+            ownerSelect.disabled = false;
+          }
+        });
+
+        row.appendChild(label);
+        row.appendChild(ownerSelect);
+        card.appendChild(row);
+      });
+
+      grid.appendChild(card);
+    });
+
+    var completedCount = familyResetTasks.filter(function (task) { return task.completed; }).length;
+    count.textContent = completedCount + ' of ' + familyResetTasks.length + ' complete';
+    progress.max = Math.max(familyResetTasks.length, 1);
+    progress.value = completedCount;
+  }
+
+  document.getElementById('start-family-reset-button').addEventListener('click', async function () {
+    if (!parentModeActive || familyResetSession) return;
+
+    var resetChores = window.homeManagementSampleData.chores.filter(function (chore) {
+      return chore.active && chore.familyReset;
+    });
+    var button = document.getElementById('start-family-reset-button');
+    var status = document.getElementById('family-reset-status');
+
+    if (resetChores.length === 0) {
+      status.textContent = 'Mark at least one active chore as Family Reset before starting.';
+      return;
+    }
+
+    button.disabled = true;
+    status.textContent = 'Starting Family Reset...';
+    try {
+      await window.homeManagementData.startFamilyReset(resetChores);
+      status.textContent = '';
+    } catch (error) {
+      status.textContent = 'Could not start Family Reset: ' + error.message;
+      button.disabled = false;
+    }
+  });
 
   var profileButtons = document.querySelectorAll('[data-profile-target]');
 
@@ -753,6 +869,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
       populateOwnerOptions();
       renderTodayChores();
+      renderFamilyReset();
     },
     setChores: function (chores) {
       var sampleData = window.homeManagementSampleData;
@@ -773,7 +890,7 @@ document.addEventListener('DOMContentLoaded', function () {
       sampleData.chores = chores;
       renderTodayChores();
       renderChoresByRoom();
-      applyFamilyResetFlags();
+      renderFamilyReset();
     },
     setCompletions: function (savedCompletions) {
       completions = savedCompletions;
@@ -797,6 +914,14 @@ document.addEventListener('DOMContentLoaded', function () {
       mealFavorites = favorites;
       renderMealFavorites();
     },
+    setFamilyResetSession: function (session) {
+      familyResetSession = session;
+      renderFamilyReset();
+    },
+    setFamilyResetTasks: function (tasks) {
+      familyResetTasks = tasks;
+      renderFamilyReset();
+    },
     setParentPinConfigured: function (isConfigured) {
       var setupForm = document.getElementById('parent-pin-form');
       var unlockForm = document.getElementById('parent-pin-unlock-form');
@@ -812,6 +937,7 @@ document.addEventListener('DOMContentLoaded', function () {
       closeChoreEditor();
       renderWeeklyMeals();
       renderMealFavorites();
+      renderFamilyReset();
       document.getElementById('meal-editing-note').textContent = 'Unlock Parent Mode under More to edit this week.';
 
       setupForm.hidden = isConfigured;
@@ -842,6 +968,7 @@ document.addEventListener('DOMContentLoaded', function () {
       if (!isActive) closeChoreEditor();
       renderWeeklyMeals();
       renderMealFavorites();
+      renderFamilyReset();
       document.getElementById('meal-editing-note').textContent = isActive
         ? 'Editing is enabled. Save the week when your plan is ready.'
         : 'Unlock Parent Mode under More to edit this week.';
