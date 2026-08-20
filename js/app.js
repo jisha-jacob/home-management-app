@@ -4,6 +4,9 @@ document.addEventListener('DOMContentLoaded', function () {
   var selectedProfile = 'family';
   var masterChoresLoaded = false;
   var parentModeActive = false;
+  var weeklyMeals = [];
+  var mealFavorites = [];
+  var activeMealInput = null;
 
   function formatDateKey(date) {
     var month = String(date.getMonth() + 1).padStart(2, '0');
@@ -92,6 +95,56 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     return labels[frequency] || frequency;
+  }
+
+  function renderWeeklyMeals() {
+    var grid = document.getElementById('weekly-meal-grid');
+    var range = document.getElementById('meal-week-range');
+    var mealTypes = ['breakfast', 'lunch', 'dinner'];
+
+    if (!grid || weeklyMeals.length === 0) return;
+
+    activeMealInput = null;
+
+    var firstDate = parseLocalDate(weeklyMeals[0].date);
+    var lastDate = parseLocalDate(weeklyMeals[weeklyMeals.length - 1].date);
+    range.textContent = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(firstDate)
+      + ' – ' + new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(lastDate);
+    grid.textContent = '';
+
+    weeklyMeals.forEach(function (meal) {
+      var date = parseLocalDate(meal.date);
+      var card = document.createElement('article');
+      var heading = document.createElement('h2');
+      var dateLabel = document.createElement('time');
+      var fields = document.createElement('div');
+
+      card.className = 'dashboard-card day-card meal-day-card';
+      if (meal.date === formatDateKey(currentDate)) card.classList.add('is-today');
+      heading.textContent = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(date);
+      dateLabel.dateTime = meal.date;
+      dateLabel.textContent = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(date);
+      fields.className = 'meal-day-fields';
+
+      mealTypes.forEach(function (mealType) {
+        var label = document.createElement('label');
+        var input = document.createElement('input');
+        label.textContent = mealType.charAt(0).toUpperCase() + mealType.slice(1);
+        input.type = 'text';
+        input.maxLength = 120;
+        input.value = meal[mealType];
+        input.readOnly = !parentModeActive;
+        input.setAttribute('data-meal-date', meal.date);
+        input.setAttribute('data-meal-type', mealType);
+        label.appendChild(input);
+        fields.appendChild(label);
+      });
+
+      card.appendChild(heading);
+      card.appendChild(dateLabel);
+      card.appendChild(fields);
+      grid.appendChild(card);
+    });
   }
 
   function isCompletedOnDate(choreId, date) {
@@ -532,6 +585,160 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
 
+  var weeklyMealForm = document.getElementById('weekly-meal-form');
+
+  weeklyMealForm.addEventListener('focusin', function (event) {
+    if (event.target.matches('[data-meal-date][data-meal-type]')) activeMealInput = event.target;
+  });
+
+  weeklyMealForm.addEventListener('input', function () {
+    if (!parentModeActive) return;
+    document.getElementById('meal-save-status').textContent = 'Unsaved changes';
+  });
+
+  weeklyMealForm.addEventListener('submit', async function (event) {
+    event.preventDefault();
+    if (!parentModeActive) return;
+
+    var saveButton = document.getElementById('save-weekly-meals-button');
+    var status = document.getElementById('meal-save-status');
+    var meals = weeklyMeals.map(function (meal) {
+      var savedMeal = { date: meal.date };
+
+      ['breakfast', 'lunch', 'dinner'].forEach(function (mealType) {
+        var input = weeklyMealForm.querySelector(
+          '[data-meal-date="' + meal.date + '"][data-meal-type="' + mealType + '"]'
+        );
+        savedMeal[mealType] = input.value.trim();
+      });
+
+      return savedMeal;
+    });
+
+    saveButton.disabled = true;
+    status.textContent = 'Saving week...';
+
+    try {
+      await window.homeManagementData.saveWeeklyMeals(meals);
+      status.textContent = 'Week saved.';
+    } catch (error) {
+      status.textContent = 'Could not save the week: ' + error.message;
+    } finally {
+      saveButton.disabled = false;
+    }
+  });
+
+  function renderMealFavorites() {
+    var container = document.getElementById('meal-favorites-groups');
+    var mealTypes = ['breakfast', 'lunch', 'dinner'];
+
+    container.textContent = '';
+    mealTypes.forEach(function (mealType) {
+      var group = document.createElement('section');
+      var heading = document.createElement('h3');
+      var list = document.createElement('div');
+      var matchingFavorites = mealFavorites.filter(function (favorite) {
+        return favorite.type === mealType;
+      }).sort(function (firstFavorite, secondFavorite) {
+        return firstFavorite.name.localeCompare(secondFavorite.name);
+      });
+
+      heading.textContent = mealType.charAt(0).toUpperCase() + mealType.slice(1);
+      list.className = 'favorite-meal-list';
+      if (matchingFavorites.length === 0) {
+        var empty = document.createElement('span');
+        empty.className = 'favorite-meal-empty';
+        empty.textContent = 'No favorites yet';
+        list.appendChild(empty);
+      }
+
+      matchingFavorites.forEach(function (favorite) {
+        var button = document.createElement('button');
+        button.className = 'favorite-meal-button';
+        button.type = 'button';
+        button.textContent = favorite.name;
+        button.disabled = !parentModeActive;
+        button.addEventListener('click', function () {
+          if (!activeMealInput) {
+            document.getElementById('favorite-meal-status').textContent = 'Choose a meal field first.';
+            return;
+          }
+
+          activeMealInput.value = favorite.name;
+          activeMealInput.dispatchEvent(new Event('input', { bubbles: true }));
+          document.getElementById('favorite-meal-status').textContent = favorite.name + ' added to the planner.';
+          activeMealInput.focus();
+        });
+        list.appendChild(button);
+      });
+
+      group.className = 'favorite-meal-group';
+      group.appendChild(heading);
+      group.appendChild(list);
+      container.appendChild(group);
+    });
+
+    document.getElementById('meal-favorites-count').textContent = mealFavorites.length + ' favorites';
+  }
+
+  document.getElementById('favorite-meal-form').addEventListener('submit', async function (event) {
+    event.preventDefault();
+    if (!parentModeActive) return;
+
+    var nameInput = document.getElementById('favorite-meal-name');
+    var typeInput = document.getElementById('favorite-meal-type');
+    var status = document.getElementById('favorite-meal-status');
+    var saveButton = document.getElementById('save-favorite-meal-button');
+    var name = nameInput.value.trim();
+    var duplicate = mealFavorites.some(function (favorite) {
+      return favorite.type === typeInput.value && favorite.name.toLowerCase() === name.toLowerCase();
+    });
+
+    if (!name) return;
+    if (duplicate) {
+      status.textContent = 'That favorite already exists for this meal type.';
+      return;
+    }
+
+    saveButton.disabled = true;
+    status.textContent = 'Saving favorite...';
+    try {
+      await window.homeManagementData.saveMealFavorite(name, typeInput.value);
+      nameInput.value = '';
+      status.textContent = 'Favorite saved.';
+    } catch (error) {
+      status.textContent = 'Could not save the favorite: ' + error.message;
+    } finally {
+      saveButton.disabled = false;
+    }
+  });
+
+  document.getElementById('copy-last-week-button').addEventListener('click', async function () {
+    if (!parentModeActive) return;
+
+    var button = document.getElementById('copy-last-week-button');
+    var status = document.getElementById('copy-last-week-status');
+    button.disabled = true;
+    status.textContent = 'Loading last week...';
+
+    try {
+      var copiedMeals = await window.homeManagementData.getLastWeekMeals();
+      copiedMeals.forEach(function (meal) {
+        ['breakfast', 'lunch', 'dinner'].forEach(function (mealType) {
+          weeklyMealForm.querySelector(
+            '[data-meal-date="' + meal.date + '"][data-meal-type="' + mealType + '"]'
+          ).value = meal[mealType];
+        });
+      });
+      document.getElementById('meal-save-status').textContent = 'Unsaved changes';
+      status.textContent = 'Last week copied. Review the plan, then save the week.';
+    } catch (error) {
+      status.textContent = 'Could not copy last week: ' + error.message;
+    } finally {
+      button.disabled = false;
+    }
+  });
+
   window.homeManagementApp = {
     setMembers: function (members) {
       var sampleData = window.homeManagementSampleData;
@@ -578,23 +785,17 @@ document.addEventListener('DOMContentLoaded', function () {
       renderChoresByRoom();
     },
     setTodayMeals: function (meals) {
-      document.getElementById('today-breakfast').textContent = meals.breakfast;
-      document.getElementById('today-lunch').textContent = meals.lunch;
-      document.getElementById('today-dinner').textContent = meals.dinner;
-
-      var dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-      var todayName = dayNames[new Date().getDay()];
-      var dayCards = document.querySelectorAll('.day-card');
-
-      for (var index = 0; index < dayCards.length; index += 1) {
-        if (dayCards[index].querySelector('h2').textContent !== todayName) continue;
-
-        var mealValues = dayCards[index].querySelectorAll('dd');
-        mealValues[0].textContent = meals.breakfast;
-        mealValues[1].textContent = meals.lunch;
-        mealValues[2].textContent = meals.dinner;
-        break;
-      }
+      document.getElementById('today-breakfast').textContent = meals.breakfast || 'Not planned';
+      document.getElementById('today-lunch').textContent = meals.lunch || 'Not planned';
+      document.getElementById('today-dinner').textContent = meals.dinner || 'Not planned';
+    },
+    setWeeklyMeals: function (meals) {
+      weeklyMeals = meals;
+      renderWeeklyMeals();
+    },
+    setMealFavorites: function (favorites) {
+      mealFavorites = favorites;
+      renderMealFavorites();
     },
     setParentPinConfigured: function (isConfigured) {
       var setupForm = document.getElementById('parent-pin-form');
@@ -609,6 +810,9 @@ document.addEventListener('DOMContentLoaded', function () {
         control.hidden = true;
       });
       closeChoreEditor();
+      renderWeeklyMeals();
+      renderMealFavorites();
+      document.getElementById('meal-editing-note').textContent = 'Unlock Parent Mode under More to edit this week.';
 
       setupForm.hidden = isConfigured;
       unlockForm.hidden = !isConfigured;
@@ -636,6 +840,12 @@ document.addEventListener('DOMContentLoaded', function () {
         control.hidden = !isActive;
       });
       if (!isActive) closeChoreEditor();
+      renderWeeklyMeals();
+      renderMealFavorites();
+      document.getElementById('meal-editing-note').textContent = isActive
+        ? 'Editing is enabled. Save the week when your plan is ready.'
+        : 'Unlock Parent Mode under More to edit this week.';
+      if (!isActive) document.getElementById('meal-save-status').textContent = '';
 
       unlockForm.hidden = isActive;
       lockButton.hidden = !isActive;

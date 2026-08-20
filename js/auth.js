@@ -6,14 +6,16 @@ import {
 import { auth } from "./firebase-config.js?v=20260819-3";
 import {
   loadActiveChores,
+  loadCurrentWeekMeals,
   loadHouseholdMembers,
+  loadMealFavorites,
   loadParentModeSettings,
   loadTodayCompletions,
   loadTodayMeals,
   loadTodayOverrides,
   saveParentPin,
   verifyParentPin
-} from "./firestore-data.js?v=20260820-1";
+} from "./firestore-data.js?v=20260820-5";
 
 const approvedParentAccounts = {
   'jisha18@gmail.com': 'Mom',
@@ -61,6 +63,8 @@ async function showApp(user) {
   await loadTodayCompletions();
   await loadTodayOverrides();
   await loadTodayMeals();
+  await loadCurrentWeekMeals();
+  await loadMealFavorites();
   await loadParentModeSettings();
   authScreen.hidden = true;
   appNavigation.hidden = false;

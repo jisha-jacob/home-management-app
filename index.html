@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Home Management App</title>
-  <link rel="stylesheet" href="css/styles.css?v=20260820-1">
+  <link rel="stylesheet" href="css/styles.css?v=20260820-5">
 </head>
 <body>
   <section class="auth-screen" id="auth-screen" aria-labelledby="auth-title">
@@ -299,67 +299,44 @@
     </section>
     <section class="app-screen" id="meals-screen" data-screen="meals" hidden>
       <header class="screen-header">
-        <p class="screen-kicker">Weekly plan</p>
-        <h1>Meals</h1>
+        <div>
+          <p class="screen-kicker">Weekly plan</p>
+          <h1>Meals</h1>
+        </div>
+        <p class="meal-week-range" id="meal-week-range"></p>
       </header>
-      <div class="weekly-meal-grid">
-        <article class="dashboard-card day-card">
-          <h2>Monday</h2>
-          <dl class="day-meals">
-            <div><dt>Breakfast</dt><dd>Oatmeal + fruit</dd></div>
-            <div><dt>Lunch</dt><dd>Dal + rice</dd></div>
-            <div><dt>Dinner</dt><dd>Chicken curry</dd></div>
-          </dl>
-        </article>
-        <article class="dashboard-card day-card">
-          <h2>Tuesday</h2>
-          <dl class="day-meals">
-            <div><dt>Breakfast</dt><dd>Eggs + toast</dd></div>
-            <div><dt>Lunch</dt><dd>Leftovers</dd></div>
-            <div><dt>Dinner</dt><dd>Leftovers</dd></div>
-          </dl>
-        </article>
-        <article class="dashboard-card day-card">
-          <h2>Wednesday</h2>
-          <dl class="day-meals">
-            <div><dt>Breakfast</dt><dd>Idli</dd></div>
-            <div><dt>Lunch</dt><dd>Sandwiches</dd></div>
-            <div><dt>Dinner</dt><dd>Pasta</dd></div>
-          </dl>
-        </article>
-        <article class="dashboard-card day-card">
-          <h2>Thursday</h2>
-          <dl class="day-meals">
-            <div><dt>Breakfast</dt><dd>Cereal + banana</dd></div>
-            <div><dt>Lunch</dt><dd>Pasta leftovers</dd></div>
-            <div><dt>Dinner</dt><dd>Rajma + rice</dd></div>
-          </dl>
-        </article>
-        <article class="dashboard-card day-card">
-          <h2>Friday</h2>
-          <dl class="day-meals">
-            <div><dt>Breakfast</dt><dd>Dosa</dd></div>
-            <div><dt>Lunch</dt><dd>Wraps</dd></div>
-            <div><dt>Dinner</dt><dd>Freezer meal</dd></div>
-          </dl>
-        </article>
-        <article class="dashboard-card day-card">
-          <h2>Saturday</h2>
-          <dl class="day-meals">
-            <div><dt>Breakfast</dt><dd>Pancakes + fruit</dd></div>
-            <div><dt>Lunch</dt><dd>Sandwiches</dd></div>
-            <div><dt>Dinner</dt><dd>Biryani</dd></div>
-          </dl>
-        </article>
-        <article class="dashboard-card day-card">
-          <h2>Sunday</h2>
-          <dl class="day-meals">
-            <div><dt>Breakfast</dt><dd>Eggs + toast</dd></div>
-            <div><dt>Lunch</dt><dd>Biryani leftovers</dd></div>
-            <div><dt>Dinner</dt><dd>Soup + bread</dd></div>
-          </dl>
-        </article>
+      <p class="meal-editing-note" id="meal-editing-note">Unlock Parent Mode under More to edit this week.</p>
+      <div class="meal-planner-tools parent-only-control" id="meal-planner-tools" hidden>
+        <button class="secondary-action" id="copy-last-week-button" type="button">Copy Last Week</button>
+        <p class="form-status" id="copy-last-week-status" role="status"></p>
       </div>
+      <form id="weekly-meal-form">
+        <div class="weekly-meal-grid" id="weekly-meal-grid" aria-live="polite"></div>
+        <div class="meal-save-actions parent-only-control" id="meal-save-actions" hidden>
+          <p class="form-status" id="meal-save-status" role="status"></p>
+          <button class="primary-action" id="save-weekly-meals-button" type="submit">Save week</button>
+        </div>
+      </form>
+      <section class="dashboard-card meal-favorites-card" aria-labelledby="meal-favorites-title">
+        <div class="card-heading">
+          <h2 id="meal-favorites-title">Meal Favorites</h2>
+          <span class="chore-count" id="meal-favorites-count">0 favorites</span>
+        </div>
+        <p>Choose a meal field, then select a favorite to insert it. Parents can save new favorites below.</p>
+        <div class="meal-favorites-groups" id="meal-favorites-groups"></div>
+        <form class="favorite-meal-form parent-only-control" id="favorite-meal-form" hidden>
+          <label>Meal name<input id="favorite-meal-name" type="text" maxlength="120" required></label>
+          <label>Meal type
+            <select id="favorite-meal-type">
+              <option value="breakfast">Breakfast</option>
+              <option value="lunch">Lunch</option>
+              <option value="dinner">Dinner</option>
+            </select>
+          </label>
+          <button class="primary-action" id="save-favorite-meal-button" type="submit">Add favorite</button>
+        </form>
+        <p class="form-status" id="favorite-meal-status" role="status"></p>
+      </section>
     </section>
     <section class="app-screen" id="reset-screen" data-screen="reset" hidden>
       <header class="screen-header reset-header">
@@ -457,7 +434,7 @@
     </section>
   </main>
   <script src="data/sample-data.js"></script>
-  <script src="js/app.js?v=20260820-1"></script>
-  <script type="module" src="js/auth-loader.js?v=20260820-1"></script>
+  <script src="js/app.js?v=20260820-5"></script>
+  <script type="module" src="js/auth-loader.js?v=20260820-5"></script>
 </body>
 </html>
