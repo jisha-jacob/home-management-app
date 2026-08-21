@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Home Management App</title>
-  <link rel="stylesheet" href="css/styles.css?v=20260820-15">
+  <link rel="stylesheet" href="css/styles.css?v=20260821-17">
 </head>
 <body>
   <section class="auth-screen" id="auth-screen" aria-labelledby="auth-title">
@@ -31,12 +31,7 @@
     <header class="dashboard-header">
       <time class="dashboard-date" id="today-date">TODAY</time>
     </header>
-    <aside class="household-reminder" id="household-reminder-banner" aria-labelledby="reminder-title" hidden>
-      <h2 id="reminder-title">Household reminder</h2>
-      <p id="household-reminder-text"></p>
-    </aside>
-    <aside class="household-reminder verse-of-week" id="verse-of-week-banner" aria-labelledby="verse-title" hidden>
-      <h2 id="verse-title">Verse of the week</h2>
+    <aside class="household-reminder verse-of-week" id="verse-of-week-banner" aria-label="Verse of the week" hidden>
       <p id="verse-of-week-text"></p>
     </aside>
     <nav class="profile-list" aria-label="Choose a family profile">
@@ -151,6 +146,9 @@
         </div>
       </dl>
       </section>
+      <aside class="household-reminder dashboard-reminder" id="household-reminder-banner" aria-label="Household reminder" hidden>
+        <p id="household-reminder-text"></p>
+      </aside>
     </div>
     </section>
     <section class="app-screen" id="chores-screen" data-screen="chores" hidden>

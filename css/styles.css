@@ -86,9 +86,9 @@ main {
   stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
 }
 .shopping-microphone.is-listening { background: #f3d8d8; color: #7b2727; }
-.shopping-list-heading { margin-bottom: 0; }
+.shopping-list-heading { margin-bottom: 0; padding-bottom: 10px; }
 .shopping-list-actions { display: flex; align-items: center; gap: 12px; }
-.shopping-clear-button { min-height: 42px; padding: 8px 14px; }
+.shopping-clear-button { min-height: 34px; padding: 6px 10px; font-size: 0.85rem; }
 .shopping-list { margin: 0; padding: 0; list-style: none; }
 .shopping-item {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
@@ -727,8 +727,10 @@ main {
   background: #e5f0e8;
 }
 
-.verse-of-week h2 {
-  color: #3f654d;
+.dashboard-reminder {
+  grid-column: 1 / -1;
+  width: 100%;
+  margin-top: 0;
 }
 
 .dashboard-card {
@@ -898,15 +900,28 @@ main {
 }
 
 .meal-list {
+  display: grid;
+  gap: 12px;
   margin: 18px 0 0;
 }
 
 .meal-item {
-  display: grid;
-  grid-template-columns: minmax(88px, 0.35fr) 1fr;
-  gap: 16px;
-  padding: 16px 0;
-  border-top: 1px solid #edf0ed;
+  min-width: 0;
+  border: 1px solid rgba(39, 51, 45, 0.06);
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.meal-item:nth-child(1) {
+  background: #fff4df;
+}
+
+.meal-item:nth-child(2) {
+  background: #eaf4ec;
+}
+
+.meal-item:nth-child(3) {
+  background: #eeeafb;
 }
 
 .meal-item dt,
@@ -915,13 +930,20 @@ main {
 }
 
 .meal-item dt {
-  color: #66736c;
-  font-size: 0.9rem;
-  font-weight: 650;
+  margin-bottom: 6px;
+  color: #5f6c65;
+  font-size: 0.78rem;
+  font-weight: 750;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 .meal-item dd {
-  font-weight: 650;
+  min-width: 0;
+  font-size: 1.08rem;
+  font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .parent-mode-card {
@@ -1168,6 +1190,10 @@ main {
 
   .meals-card {
     grid-column: 1 / -1;
+  }
+
+  .meal-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .room-grid {
