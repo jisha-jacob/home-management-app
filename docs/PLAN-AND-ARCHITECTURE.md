@@ -832,20 +832,30 @@ Possible later feature only if needed.
 
 # 10. Family Reset Mode
 
-The family does one 60–90 minute reset each week.
-
-The app should support a dedicated reset screen.
+The family uses one Monday-through-Sunday reset view each week. The app supports
+this with a dedicated screen that is available throughout the week, so anyone
+can see unfinished work and chip in without first creating a reset session.
 
 ## 10.1 Family Reset Screen
 
 Include:
 
-- Start Family Reset button
-- Tasks grouped by person
-- Large checkboxes
-- Overall progress indicator
-- Parent reassignment
-- Family/unassigned tasks
+- Automatically collect active weekly, every-two-weeks, and monthly chores due
+  anywhere in the current Monday-through-Sunday window
+- Display all collected chores immediately; do not require a Start button
+- Group tasks by their normal owner, including Family/unassigned tasks
+- Large checkboxes available to the family
+- Overall progress indicator that remains visible throughout the week
+- Use each chore's actual due-date completion record instead of separate reset
+  completion state
+- Keep Daily Tasks and Family Reset synchronized in both directions: completing
+  a due chore on either screen checks it on the other screen
+- Allow a reset chore to be completed before its due day; when that day arrives,
+  Daily Tasks must already show it as completed
+
+The reset list is calculated from the current chore definitions and recurrence
+rules. It does not create or depend on a weekly `resetSessions` snapshot, and
+changes to eligible chore definitions affect the calculated weekly view.
 
 Example:
 
@@ -1189,6 +1199,11 @@ It should not be treated as internet-grade authentication.
 }
 ```
 
+The same completion document is the source of truth for Daily Tasks and Family
+Reset. For a reset chore completed early, `date` is the chore's scheduled due
+date within the current Monday-through-Sunday window, not necessarily the date
+on which the family checked the box.
+
 ## Temporary Override
 
 ```json
@@ -1465,6 +1480,19 @@ activates them in Phase 7.
 - Meal data loads from Firestore and syncs across devices
 - Changes appear across phone/laptop
 
+### Current synchronization status
+
+- Chore completions, Family Reset progress, saved meal plans, meal favorites,
+  assigned-for-today tasks, shopping items, and household content use Firestore
+  listeners and update across active signed-in devices.
+- Meal-plan edits synchronize only after the user selects **Save 7 days**; typing
+  in an unsaved form is local to that device.
+- Chore-definition additions and edits, temporary overrides, and household-member
+  changes currently use one-time reads. Other devices may require a refresh to
+  see those changes. This is an accepted Version 1 limitation rather than a
+  database-schema issue; full live listeners can be added later if real-world use
+  shows that they are needed.
+
 ---
 
 ## Phase 6 — Parent Authorization & Parent Mode
@@ -1552,18 +1580,22 @@ Support the family's weekly 60–90 minute reset.
 
 ### Build
 
-- Start Family Reset
-- Show reset chores
-- Group by person
-- Completion progress
-- Parent reassignment
-- Shared/unassigned tasks
+- Automatically show the current Monday-through-Sunday reset list
+- Include active weekly, every-two-weeks, and monthly chores due during the week
+- Group chores by their normal owner, including shared/unassigned work
+- Show completion progress throughout the week
+- Store completion against each chore's scheduled due date
+- Synchronize completion between Daily Tasks and Family Reset in both directions
+- Do not require a Start Family Reset action or separate reset-task records
 
 ### Acceptance Check
 
-Run one real family reset using the app.
-
-Record usability issues before adding anything else.
+- The full week's eligible chores appear without starting a session
+- A chore checked in Daily Tasks is checked in Family Reset
+- A chore checked early in Family Reset is already checked on its Daily Tasks due date
+- Progress updates as either screen completes work
+- The list rolls to the new Monday-through-Sunday window at the start of a week
+- Run one real family reset using the app and record usability issues
 
 ---
 
