@@ -1,14 +1,13 @@
 document.addEventListener('DOMContentLoaded', function () {
   var currentDate = new Date();
   var completions = [];
+  var todayTasks = [];
   var selectedProfile = 'family';
   var masterTaskRequest = null;
   var parentModeActive = false;
   var weeklyMeals = [];
   var mealFavorites = [];
   var activeMealInput = null;
-  var familyResetSession = null;
-  var familyResetTasks = [];
   var calendarConnected = false;
   var shoppingItems = [];
   var removedShoppingItems = [];
@@ -35,6 +34,14 @@ document.addEventListener('DOMContentLoaded', function () {
     var parts = dateString.split('-');
 
     return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+  }
+
+  function getWeekStart(date) {
+    var start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    var daysSinceMonday = (start.getDay() + 6) % 7;
+
+    start.setDate(start.getDate() - daysSinceMonday);
+    return start;
   }
 
   function isChoreDueOnDate(chore, date) {
@@ -237,13 +244,14 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   function getAssignedOwner(chore, date, overrides) {
+    if (chore.oneTime) return chore.assignedTo;
     var override = getOverrideForDate(chore.id, date, overrides);
 
     return override && override.assignedTo ? override.assignedTo : chore.defaultOwner;
   }
 
-  async function setChoreCompletion(choreId, completed) {
-    var dateKey = formatDateKey(currentDate);
+  async function setChoreCompletion(choreId, completed, completionDate) {
+    var dateKey = formatDateKey(completionDate || currentDate);
     var previousCompletions = completions.slice();
 
     completions = completions.filter(function (completion) {
@@ -259,11 +267,30 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     renderTodayChores();
+    renderFamilyReset();
 
     try {
       await window.homeManagementData.saveChoreCompletion(choreId, dateKey, completed, selectedProfile);
     } catch (error) {
       completions = previousCompletions;
+      renderTodayChores();
+      renderFamilyReset();
+      window.alert('The chore could not be saved. Please try again.');
+    }
+  }
+
+  async function setTodayTaskCompletion(taskId, completed) {
+    var task = todayTasks.find(function (todayTask) { return todayTask.id === taskId; });
+    var previousCompleted = task ? task.completed : false;
+
+    if (!task) return;
+    task.completed = completed;
+    renderTodayChores();
+
+    try {
+      await window.homeManagementData.saveTodayTaskCompletion(taskId, completed, selectedProfile);
+    } catch (error) {
+      task.completed = previousCompleted;
       renderTodayChores();
       window.alert('The chore could not be saved. Please try again.');
     }
@@ -288,10 +315,14 @@ document.addEventListener('DOMContentLoaded', function () {
     label.className = 'chore-label';
     checkbox.className = 'chore-checkbox';
     checkbox.type = 'checkbox';
-    checkbox.checked = isCompletedOnDate(chore.id, currentDate);
+    checkbox.checked = chore.oneTime ? Boolean(chore.completed) : isCompletedOnDate(chore.id, currentDate);
     checkbox.setAttribute('data-chore-id', chore.id);
     checkbox.addEventListener('change', function () {
-      setChoreCompletion(chore.id, checkbox.checked);
+      if (chore.oneTime) {
+        setTodayTaskCompletion(chore.id, checkbox.checked);
+      } else {
+        setChoreCompletion(chore.id, checkbox.checked);
+      }
     });
     details.className = 'chore-details';
     ownerName.className = 'chore-owner';
@@ -336,16 +367,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
       return !override || !override.skipped;
     });
+    dueChores = dueChores.concat(todayTasks);
     var profileChores = dueChores.filter(function (chore) {
       var ownerId = getAssignedOwner(chore, currentDate, sampleData.overrides);
 
       return selectedProfile === 'family' || ownerId === selectedProfile;
     });
     var openProfileChores = profileChores.filter(function (chore) {
-      return !isCompletedOnDate(chore.id, currentDate);
+      return chore.oneTime ? !chore.completed : !isCompletedOnDate(chore.id, currentDate);
     });
     var openDueChores = dueChores.filter(function (chore) {
-      return !isCompletedOnDate(chore.id, currentDate);
+      return chore.oneTime ? !chore.completed : !isCompletedOnDate(chore.id, currentDate);
     });
     var completedCount = profileChores.length - openProfileChores.length;
 
@@ -354,6 +386,105 @@ document.addEventListener('DOMContentLoaded', function () {
     homeCount.textContent = completedCount + ' of ' + profileChores.length + ' done';
     todayCount.textContent = openDueChores.length + (openDueChores.length === 1 ? ' chore due' : ' chores due');
   }
+
+  var todayTaskForm = document.getElementById('today-task-form');
+  var todayTaskRows = document.getElementById('today-task-rows');
+
+  function updateTodayTaskRemoveButtons() {
+    var buttons = todayTaskRows.querySelectorAll('.today-task-remove-row');
+
+    buttons.forEach(function (button) {
+      button.hidden = buttons.length === 1;
+    });
+  }
+
+  function addTodayTaskRow() {
+    if (todayTaskRows.children.length >= 20) {
+      document.getElementById('today-task-status').textContent = 'You can assign up to 20 chores at a time.';
+      return;
+    }
+
+    var row = document.createElement('div');
+    var nameInput = document.createElement('input');
+    var ownerSelect = document.createElement('select');
+    var removeButton = document.createElement('button');
+    var members = window.homeManagementSampleData.members;
+
+    row.className = 'today-task-row';
+    nameInput.type = 'text';
+    nameInput.maxLength = 120;
+    nameInput.required = true;
+    nameInput.placeholder = 'Chore name';
+    nameInput.setAttribute('aria-label', 'Chore name');
+    ownerSelect.setAttribute('aria-label', 'Assign chore to');
+    addSelectOption(ownerSelect, 'family', 'Family');
+    Object.keys(members).sort(function (firstId, secondId) {
+      return members[firstId].displayOrder - members[secondId].displayOrder;
+    }).forEach(function (memberId) {
+      addSelectOption(ownerSelect, memberId, members[memberId].name);
+    });
+    removeButton.className = 'secondary-action today-task-remove-row';
+    removeButton.type = 'button';
+    removeButton.textContent = 'Remove';
+    removeButton.addEventListener('click', function () {
+      row.remove();
+      updateTodayTaskRemoveButtons();
+    });
+
+    row.appendChild(nameInput);
+    row.appendChild(ownerSelect);
+    row.appendChild(removeButton);
+    todayTaskRows.appendChild(row);
+    updateTodayTaskRemoveButtons();
+    nameInput.focus();
+  }
+
+  function closeTodayTaskForm() {
+    todayTaskForm.hidden = true;
+    todayTaskRows.textContent = '';
+    document.getElementById('today-task-status').textContent = '';
+  }
+
+  document.getElementById('open-today-task-form-button').addEventListener('click', function () {
+    if (!parentModeActive) return;
+    todayTaskRows.textContent = '';
+    document.getElementById('today-task-status').textContent = '';
+    todayTaskForm.hidden = false;
+    addTodayTaskRow();
+  });
+
+  document.getElementById('add-today-task-row-button').addEventListener('click', addTodayTaskRow);
+  document.getElementById('cancel-today-task-button').addEventListener('click', closeTodayTaskForm);
+  todayTaskForm.addEventListener('submit', async function (event) {
+    event.preventDefault();
+    if (!parentModeActive) return;
+
+    var rows = Array.from(todayTaskRows.querySelectorAll('.today-task-row'));
+    var tasks = rows.map(function (row) {
+      return {
+        name: row.querySelector('input').value.trim(),
+        assignedTo: row.querySelector('select').value
+      };
+    });
+    var saveButton = document.getElementById('save-today-tasks-button');
+    var status = document.getElementById('today-task-status');
+
+    if (tasks.some(function (task) { return !task.name; })) {
+      status.textContent = 'Enter a name for every chore, or remove blank rows.';
+      return;
+    }
+
+    saveButton.disabled = true;
+    status.textContent = 'Assigning chores...';
+    try {
+      await window.homeManagementData.saveTodayTasks(tasks);
+      closeTodayTaskForm();
+    } catch (error) {
+      status.textContent = 'Could not assign the chores: ' + error.message;
+    } finally {
+      saveButton.disabled = false;
+    }
+  });
 
   function renderChoresByRoom() {
     var sampleData = window.homeManagementSampleData;
@@ -422,29 +553,37 @@ document.addEventListener('DOMContentLoaded', function () {
     return { name: 'Unassigned', colorClass: 'profile-family', displayOrder: 99 };
   }
 
+  function getFamilyResetTasks() {
+    var weekStart = getWeekStart(currentDate);
+    var resetFrequencies = ['weekly', 'every-2-weeks', 'monthly'];
+    var tasks = [];
+
+    window.homeManagementSampleData.chores.forEach(function (chore) {
+      if (!chore.active || resetFrequencies.indexOf(chore.frequency) === -1) return;
+
+      for (var dayOffset = 0; dayOffset < 7; dayOffset += 1) {
+        var dueDate = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + dayOffset);
+
+        if (isChoreDueOnDate(chore, dueDate)) {
+          tasks.push({ chore: chore, dueDate: dueDate });
+          break;
+        }
+      }
+    });
+
+    return tasks;
+  }
+
   function renderFamilyReset() {
     var grid = document.getElementById('reset-group-grid');
-    var startCard = document.getElementById('reset-start-card');
     var count = document.getElementById('reset-count');
     var progress = document.getElementById('reset-progress');
-    var description = document.getElementById('reset-start-description');
+    var resetTasks = getFamilyResetTasks();
     var groups = {};
 
     grid.textContent = '';
-    if (!familyResetSession) {
-      startCard.hidden = false;
-      count.textContent = 'Not started';
-      progress.value = 0;
-      progress.max = 1;
-      description.textContent = parentModeActive
-        ? 'Start a session from active chores marked Family Reset.'
-        : 'Unlock Parent Mode to start a session from active chores marked Family Reset.';
-      return;
-    }
-
-    startCard.hidden = true;
-    familyResetTasks.forEach(function (task) {
-      var ownerId = task.assignedTo || 'unassigned';
+    resetTasks.forEach(function (task) {
+      var ownerId = task.chore.defaultOwner || 'unassigned';
       if (!groups[ownerId]) groups[ownerId] = [];
       groups[ownerId].push(task);
     });
@@ -461,90 +600,45 @@ document.addEventListener('DOMContentLoaded', function () {
       card.appendChild(heading);
 
       groups[ownerId].sort(function (firstTask, secondTask) {
-        return firstTask.name.localeCompare(secondTask.name);
+        return firstTask.chore.name.localeCompare(secondTask.chore.name);
       }).forEach(function (task) {
         var row = document.createElement('div');
         var label = document.createElement('label');
         var checkbox = document.createElement('input');
         var name = document.createElement('span');
-        var ownerSelect = document.createElement('select');
 
         row.className = 'reset-task-row';
         label.className = 'reset-task';
         checkbox.type = 'checkbox';
-        checkbox.checked = Boolean(task.completed);
+        checkbox.checked = isCompletedOnDate(task.chore.id, task.dueDate);
         checkbox.addEventListener('change', async function () {
           checkbox.disabled = true;
           try {
-            await window.homeManagementData.saveResetTaskCompletion(task.id, checkbox.checked);
+            await setChoreCompletion(task.chore.id, checkbox.checked, task.dueDate);
           } catch (error) {
             checkbox.checked = !checkbox.checked;
-            document.getElementById('family-reset-status').textContent = 'Could not update the task: ' + error.message;
           } finally {
             checkbox.disabled = false;
           }
         });
-        name.textContent = task.name;
+        name.textContent = task.chore.name;
         label.appendChild(checkbox);
         label.appendChild(name);
 
-        ownerSelect.className = 'reset-owner-select parent-only-control';
-        ownerSelect.hidden = !parentModeActive;
-        ownerSelect.setAttribute('aria-label', 'Reassign ' + task.name);
-        ['unassigned', 'family'].concat(Object.keys(window.homeManagementSampleData.members)).forEach(function (memberId) {
-          addSelectOption(ownerSelect, memberId, resetOwnerDetails(memberId).name);
-        });
-        ownerSelect.value = ownerId;
-        ownerSelect.addEventListener('change', async function () {
-          ownerSelect.disabled = true;
-          try {
-            await window.homeManagementData.reassignResetTask(task.id, ownerSelect.value);
-          } catch (error) {
-            ownerSelect.value = ownerId;
-            document.getElementById('family-reset-status').textContent = 'Could not reassign the task: ' + error.message;
-          } finally {
-            ownerSelect.disabled = false;
-          }
-        });
-
         row.appendChild(label);
-        row.appendChild(ownerSelect);
         card.appendChild(row);
       });
 
       grid.appendChild(card);
     });
 
-    var completedCount = familyResetTasks.filter(function (task) { return task.completed; }).length;
-    count.textContent = completedCount + ' of ' + familyResetTasks.length + ' complete';
-    progress.max = Math.max(familyResetTasks.length, 1);
+    var completedCount = resetTasks.filter(function (task) {
+      return isCompletedOnDate(task.chore.id, task.dueDate);
+    }).length;
+    count.textContent = completedCount + ' of ' + resetTasks.length + ' complete';
+    progress.max = Math.max(resetTasks.length, 1);
     progress.value = completedCount;
   }
-
-  document.getElementById('start-family-reset-button').addEventListener('click', async function () {
-    if (!parentModeActive || familyResetSession) return;
-
-    var resetChores = window.homeManagementSampleData.chores.filter(function (chore) {
-      return chore.active && chore.familyReset;
-    });
-    var button = document.getElementById('start-family-reset-button');
-    var status = document.getElementById('family-reset-status');
-
-    if (resetChores.length === 0) {
-      status.textContent = 'Mark at least one active chore as Family Reset before starting.';
-      return;
-    }
-
-    button.disabled = true;
-    status.textContent = 'Starting Family Reset...';
-    try {
-      await window.homeManagementData.startFamilyReset(resetChores);
-      status.textContent = '';
-    } catch (error) {
-      status.textContent = 'Could not start Family Reset: ' + error.message;
-      button.disabled = false;
-    }
-  });
 
   var profileButtons = document.querySelectorAll('[data-profile-target]');
 
@@ -620,6 +714,7 @@ document.addEventListener('DOMContentLoaded', function () {
   ];
   var choreEditor = document.getElementById('chore-editor');
   var choreEditorForm = document.getElementById('chore-editor-form');
+  var deleteChoreButton = document.getElementById('delete-chore-button');
   var choreFrequency = document.getElementById('chore-frequency');
   var choreRoom = document.getElementById('chore-room');
   var choreOwner = document.getElementById('chore-owner');
@@ -769,6 +864,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     choreEditorForm.reset();
     document.getElementById('chore-editor-title').textContent = chore ? 'Edit chore' : 'Add chore';
+    deleteChoreButton.hidden = !chore;
     document.getElementById('chore-id').value = chore ? chore.id : '';
     document.getElementById('chore-name').value = chore ? chore.name : '';
     choreRoom.value = chore ? chore.room : choreRooms[0];
@@ -796,6 +892,32 @@ document.addEventListener('DOMContentLoaded', function () {
     openChoreEditor(null);
   });
   document.getElementById('cancel-chore-button').addEventListener('click', closeChoreEditor);
+  deleteChoreButton.addEventListener('click', async function () {
+    if (!parentModeActive) return;
+
+    var choreId = document.getElementById('chore-id').value;
+    var choreName = document.getElementById('chore-name').value.trim();
+    var status = document.getElementById('chore-editor-status');
+    var saveButton = document.getElementById('save-chore-button');
+
+    if (!choreId) return;
+    if (!window.confirm('Delete "' + choreName + '"? This cannot be undone.')) return;
+
+    deleteChoreButton.disabled = true;
+    saveButton.disabled = true;
+    status.textContent = 'Deleting chore...';
+
+    try {
+      await window.homeManagementData.deleteChore(choreId);
+      closeChoreEditor();
+      if (masterTaskRequest) await loadMasterTaskRequest(masterTaskRequest);
+    } catch (error) {
+      status.textContent = 'Could not delete the chore: ' + error.message;
+    } finally {
+      deleteChoreButton.disabled = false;
+      saveButton.disabled = false;
+    }
+  });
   document.getElementById('chore-skip-today').addEventListener('change', function (event) {
     choreTodayOwner.disabled = event.target.checked;
     if (event.target.checked) choreTodayOwner.value = '';
@@ -992,10 +1114,10 @@ document.addEventListener('DOMContentLoaded', function () {
     var button = document.getElementById('copy-last-week-button');
     var status = document.getElementById('copy-last-week-status');
     button.disabled = true;
-    status.textContent = 'Loading last week...';
+    status.textContent = 'Loading previous 7 days...';
 
     try {
-      var copiedMeals = await window.homeManagementData.getLastWeekMeals();
+      var copiedMeals = await window.homeManagementData.getPreviousSevenDaysMeals();
       copiedMeals.forEach(function (meal) {
         ['breakfast', 'lunch', 'dinner'].forEach(function (mealType) {
           weeklyMealForm.querySelector(
@@ -1004,9 +1126,9 @@ document.addEventListener('DOMContentLoaded', function () {
         });
       });
       document.getElementById('meal-save-status').textContent = 'Unsaved changes';
-      status.textContent = 'Last week copied. Review the plan, then save the week.';
+      status.textContent = 'Previous 7 days copied. Review the plan, then save.';
     } catch (error) {
-      status.textContent = 'Could not copy last week: ' + error.message;
+      status.textContent = 'Could not copy previous 7 days: ' + error.message;
     } finally {
       button.disabled = false;
     }
@@ -1258,6 +1380,11 @@ document.addEventListener('DOMContentLoaded', function () {
     setCompletions: function (savedCompletions) {
       completions = savedCompletions;
       renderTodayChores();
+      renderFamilyReset();
+    },
+    setTodayTasks: function (tasks) {
+      todayTasks = tasks;
+      renderTodayChores();
     },
     setOverrides: function (overrides) {
       window.homeManagementSampleData.overrides = overrides;
@@ -1280,14 +1407,6 @@ document.addEventListener('DOMContentLoaded', function () {
     setShoppingItems: function (items) {
       shoppingItems = items;
       renderShoppingItems();
-    },
-    setFamilyResetSession: function (session) {
-      familyResetSession = session;
-      renderFamilyReset();
-    },
-    setFamilyResetTasks: function (tasks) {
-      familyResetTasks = tasks;
-      renderFamilyReset();
     },
     setHouseholdContent: function (content) {
       var reminder = (content.householdReminder || '').trim();
@@ -1325,10 +1444,11 @@ document.addEventListener('DOMContentLoaded', function () {
         control.hidden = true;
       });
       closeChoreEditor();
+      closeTodayTaskForm();
       renderWeeklyMeals();
       renderMealFavorites();
       renderFamilyReset();
-      document.getElementById('meal-editing-note').textContent = 'Unlock Parent Mode under More to edit this week.';
+      document.getElementById('meal-editing-note').textContent = 'Unlock Parent Mode under More to edit these 7 days.';
 
       setupForm.hidden = isConfigured;
       unlockForm.hidden = !isConfigured;
@@ -1355,15 +1475,18 @@ document.addEventListener('DOMContentLoaded', function () {
       document.querySelectorAll('.parent-only-control').forEach(function (control) {
         control.hidden = !isActive;
       });
-      if (!isActive) closeChoreEditor();
+      if (!isActive) {
+        closeChoreEditor();
+        closeTodayTaskForm();
+      }
       document.getElementById('connect-calendar-button').hidden = !isActive || calendarConnected;
       document.getElementById('disconnect-calendar-button').hidden = !isActive || !calendarConnected;
       renderWeeklyMeals();
       renderMealFavorites();
       renderFamilyReset();
       document.getElementById('meal-editing-note').textContent = isActive
-        ? 'Editing is enabled. Save the week when your plan is ready.'
-        : 'Unlock Parent Mode under More to edit this week.';
+        ? 'Editing is enabled. Save these 7 days when your plan is ready.'
+        : 'Unlock Parent Mode under More to edit these 7 days.';
       if (!isActive) document.getElementById('meal-save-status').textContent = '';
 
       unlockForm.hidden = isActive;

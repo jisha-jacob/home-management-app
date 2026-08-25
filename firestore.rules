@@ -15,6 +15,7 @@ service cloud.firestore {
       allow read, write: if isApprovedParent()
         && collection in [
           'chores',
+          'todayTasks',
           'overrides',
           'meals',
           'mealFavorites',

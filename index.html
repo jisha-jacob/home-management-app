@@ -3,8 +3,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#27332d">
+  <meta name="mobile-web-app-capable" content="yes">
   <title>Home Management App</title>
-  <link rel="stylesheet" href="css/styles.css?v=20260821-17">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="assets/icons/app-icon-192.png" sizes="192x192" type="image/png">
+  <link rel="stylesheet" href="css/styles.css?v=20260824-20">
 </head>
 <body>
   <section class="auth-screen" id="auth-screen" aria-labelledby="auth-title">
@@ -164,8 +168,20 @@
       <section class="dashboard-card chore-view" data-chore-view="today" aria-labelledby="chore-view-title">
         <div class="card-heading">
           <h2 id="chore-view-title">Today</h2>
-          <span class="chore-count" id="today-chore-count">6 chores due</span>
+          <div class="today-chore-actions">
+            <span class="chore-count" id="today-chore-count">6 chores due</span>
+            <button class="primary-action parent-only-control" id="open-today-task-form-button" type="button" hidden>Assign for today</button>
+          </div>
         </div>
+        <form class="today-task-form" id="today-task-form" hidden>
+          <div id="today-task-rows"></div>
+          <div class="today-task-form-actions">
+            <button class="secondary-action" id="add-today-task-row-button" type="button">Add another chore</button>
+            <button class="secondary-action" id="cancel-today-task-button" type="button">Cancel</button>
+            <button class="primary-action" id="save-today-tasks-button" type="submit">Assign chores</button>
+          </div>
+          <p class="form-status" id="today-task-status" role="status"></p>
+        </form>
         <ul class="chore-list" id="today-chore-list">
           <li class="chore-item">
             <span class="person-indicator profile-child-one" aria-hidden="true"></span>
@@ -300,7 +316,10 @@
               <p>Leave the temporary owner blank to use the normal owner.</p>
             </fieldset>
             <p class="form-status" id="chore-editor-status" role="status"></p>
-            <button class="primary-action" id="save-chore-button" type="submit">Save chore</button>
+            <div class="chore-editor-actions">
+              <button class="primary-action" id="save-chore-button" type="submit">Save chore</button>
+              <button class="danger-action" id="delete-chore-button" type="button" hidden>Delete chore</button>
+            </div>
           </form>
         </section>
       </section>
@@ -308,21 +327,21 @@
     <section class="app-screen" id="meals-screen" data-screen="meals" hidden>
       <header class="screen-header">
         <div>
-          <p class="screen-kicker">Weekly plan</p>
+          <p class="screen-kicker">Next 7 days</p>
           <h1>Meals</h1>
         </div>
         <p class="meal-week-range" id="meal-week-range"></p>
       </header>
-      <p class="meal-editing-note" id="meal-editing-note">Unlock Parent Mode under More to edit this week.</p>
+      <p class="meal-editing-note" id="meal-editing-note">Unlock Parent Mode under More to edit these 7 days.</p>
       <div class="meal-planner-tools parent-only-control" id="meal-planner-tools" hidden>
-        <button class="secondary-action" id="copy-last-week-button" type="button">Copy Last Week</button>
+        <button class="secondary-action" id="copy-last-week-button" type="button">Copy Previous 7 Days</button>
         <p class="form-status" id="copy-last-week-status" role="status"></p>
       </div>
       <form id="weekly-meal-form">
         <div class="weekly-meal-grid" id="weekly-meal-grid" aria-live="polite"></div>
         <div class="meal-save-actions parent-only-control" id="meal-save-actions" hidden>
           <p class="form-status" id="meal-save-status" role="status"></p>
-          <button class="primary-action" id="save-weekly-meals-button" type="submit">Save week</button>
+          <button class="primary-action" id="save-weekly-meals-button" type="submit">Save 7 days</button>
         </div>
       </form>
       <section class="dashboard-card meal-favorites-card parent-only-control" aria-labelledby="meal-favorites-title" hidden>
@@ -352,15 +371,10 @@
           <p class="screen-kicker">Weekly household reset</p>
           <h1>Family Reset</h1>
         </div>
-        <strong class="reset-count" id="reset-count">Not started</strong>
+        <strong class="reset-count" id="reset-count">0 of 0 complete</strong>
       </header>
       <progress class="reset-progress" id="reset-progress" value="0" max="1">0 complete</progress>
-      <section class="dashboard-card reset-start-card" id="reset-start-card">
-        <h2>Ready for this week’s reset?</h2>
-        <p id="reset-start-description">Unlock Parent Mode to start a session from active chores marked Family Reset.</p>
-        <button class="primary-action parent-only-control" id="start-family-reset-button" type="button" hidden>Start Family Reset</button>
-        <p class="form-status" id="family-reset-status" role="status"></p>
-      </section>
+      <p>Weekly, every-two-weeks, and monthly chores due this Monday through Sunday.</p>
       <div class="reset-group-grid" id="reset-group-grid"></div>
     </section>
     <section class="app-screen" id="shopping-screen" data-screen="shopping" hidden>
@@ -483,7 +497,7 @@
     </section>
   </main>
   <script src="data/sample-data.js"></script>
-  <script src="js/app.js?v=20260820-16"></script>
-  <script type="module" src="js/auth-loader.js?v=20260820-16"></script>
+  <script src="js/app.js?v=20260825-21"></script>
+  <script type="module" src="js/auth-loader.js?v=20260825-21"></script>
 </body>
 </html>

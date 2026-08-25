@@ -713,11 +713,44 @@ Do NOT build:
 
 ---
 
+## 8.12 Permanent Chore Deletion
+
+Parents can permanently delete a chore that does not apply to the household.
+
+- Show the delete action only in Parent Mode while editing an existing chore.
+- Require confirmation that includes the chore name and states that deletion cannot be undone.
+- Delete only the chore definition. Preserve historical completion and Family Reset records.
+- Refresh the Today and master task views immediately after deletion.
+- Do not show the delete action while adding a new chore.
+
+Use the existing Active field when a chore may be needed again; permanent deletion is for
+chores the household does not want to retain.
+
+---
+
+## 8.13 Assign Chores for Today
+
+Parent Mode provides an **Assign for today** action in the Today view for spontaneous,
+one-time chores that should not become recurring master tasks.
+
+- Allow multiple rows in one form, with a chore name and assignee for each row.
+- Allow rows to be added or removed before saving, with a maximum of 20 chores per submission.
+- Save all submitted chores atomically.
+- Show the chores immediately on Home and Chores > Today, including profile filtering and completion.
+- Store one-time chores separately from recurring chore definitions and query only the current date.
+- Preserve past one-time task records without loading them on later dates.
+- Limit creation to Parent Mode; completion follows the same household behavior as recurring chores.
+
+---
+
 # 9. Meal Planner
 
-## 9.1 Weekly Plan
+## 9.1 Rolling Seven-Day Plan
 
-Plan all three meals for all seven days:
+Show today followed by the next six calendar days, even when the range crosses a week,
+month, or year boundary. The range advances when the app is opened or refreshed.
+
+Plan all three meals for each of the seven displayed days:
 
 - Breakfast
 - Lunch
@@ -740,7 +773,10 @@ Parents can:
 - Type any meal freely
 - Edit any meal
 - Clear a meal
-- Copy a previous week's plan
+- Copy the corresponding previous seven days
+
+Parent Mode edits the same rolling seven-day range that is visible in the Meals screen.
+For example, meal planning on Sunday includes Sunday through the following Saturday.
 
 ---
 
@@ -772,13 +808,15 @@ Possible groups:
 
 ---
 
-## 9.4 Copy Previous Week
+## 9.4 Copy Previous Seven Days
 
 Provide:
 
-> Copy Last Week
+> Copy Previous 7 Days
 
-This should populate the current week so parents only change what is different.
+This should map each displayed date to the same weekday seven days earlier so parents
+only change what is different. For example, a Tuesday-through-Monday range copies the
+previous Tuesday-through-Monday range.
 
 ---
 
@@ -1490,20 +1528,20 @@ Eliminate daily meal decision fatigue.
 
 ### Build
 
-- Seven-day planner
+- Rolling seven-day planner (today plus the next six days)
 - Breakfast
 - Lunch
 - Dinner
 - Free typing
 - Favorites
-- Copy Last Week
+- Copy Previous 7 Days
 
 ### Acceptance Check
 
-- Parent can create full weekly plan
+- Parent can edit and save the rolling seven-day plan, including dates in the next calendar week
 - Today's meals show automatically on Home
 - Favorites work
-- Previous week can be copied and edited
+- The corresponding previous seven days can be copied and edited
 
 ---
 

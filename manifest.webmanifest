@@ -1,0 +1,25 @@
+{
+  "id": "/",
+  "name": "Home Management App",
+  "short_name": "Home",
+  "description": "A private family dashboard for meals, chores, calendars, and shopping.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f6f7f4",
+  "theme_color": "#27332d",
+  "icons": [
+    {
+      "src": "/assets/icons/app-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/icons/app-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

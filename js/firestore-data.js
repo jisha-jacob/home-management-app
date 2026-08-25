@@ -15,6 +15,7 @@ import {
 import { db } from "./firebase-config.js?v=20260820-13";
 
 let stopCompletionsSync = null;
+let stopTodayTasksSync = null;
 let stopMealsSync = null;
 let stopWeeklyMealsSync = null;
 let stopMealFavoritesSync = null;
@@ -73,6 +74,10 @@ window.homeManagementData = {
     await setDoc(doc(db, 'chores', choreId), savedChore);
     await loadActiveChores();
     return choreId;
+  },
+  deleteChore: async function (choreId) {
+    await deleteDoc(doc(db, 'chores', choreId));
+    await loadActiveChores();
   },
   saveTodayOverride: async function (choreId, date, assignedTo, skipped) {
     const overrideReference = doc(db, 'overrides', date + '_' + choreId);
@@ -168,17 +173,17 @@ window.homeManagementData = {
     });
     await batch.commit();
   },
-  getLastWeekMeals: async function () {
-    const currentWeekStart = getWeekStart(new Date());
+  getPreviousSevenDaysMeals: async function () {
+    const today = new Date();
     const previousDates = [];
     const currentDates = [];
 
     for (let dayOffset = 0; dayOffset < 7; dayOffset += 1) {
       previousDates.push(formatDateKey(new Date(
-        currentWeekStart.getFullYear(), currentWeekStart.getMonth(), currentWeekStart.getDate() - 7 + dayOffset
+        today.getFullYear(), today.getMonth(), today.getDate() - 7 + dayOffset
       )));
       currentDates.push(formatDateKey(new Date(
-        currentWeekStart.getFullYear(), currentWeekStart.getMonth(), currentWeekStart.getDate() + dayOffset
+        today.getFullYear(), today.getMonth(), today.getDate() + dayOffset
       )));
     }
 
@@ -187,7 +192,7 @@ window.homeManagementData = {
     }));
 
     if (!documents.some(function (mealDocument) { return mealDocument.exists(); })) {
-      throw new Error('No meal plan was saved last week.');
+      throw new Error('No meal plan was saved for the previous seven days.');
     }
 
     return documents.map(function (mealDocument, index) {
@@ -243,10 +248,39 @@ window.homeManagementData = {
       completedBy: completedBy
     });
   },
+  saveTodayTasks: async function (tasks) {
+    const batch = writeBatch(db);
+    const date = formatDateKey(new Date());
+
+    tasks.forEach(function (task) {
+      const taskReference = doc(collection(db, 'todayTasks'));
+
+      batch.set(taskReference, {
+        date: date,
+        name: task.name,
+        assignedTo: task.assignedTo,
+        completed: false,
+        createdAt: serverTimestamp()
+      });
+    });
+
+    await batch.commit();
+  },
+  saveTodayTaskCompletion: async function (taskId, completed, completedBy) {
+    await setDoc(doc(db, 'todayTasks', taskId), {
+      completed: completed,
+      completedBy: completed ? completedBy : null
+    }, { merge: true });
+  },
   stopSync: function () {
     if (stopCompletionsSync) {
       stopCompletionsSync();
       stopCompletionsSync = null;
+    }
+
+    if (stopTodayTasksSync) {
+      stopTodayTasksSync();
+      stopTodayTasksSync = null;
     }
 
     if (stopMealsSync) {
@@ -393,7 +427,10 @@ export async function loadActiveChores() {
 }
 
 export async function loadTodayCompletions() {
-  const date = formatDateKey(new Date());
+  const weekStart = getWeekStart(new Date());
+  const weekEnd = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + 6);
+  const startDate = formatDateKey(weekStart);
+  const endDate = formatDateKey(weekEnd);
 
   if (stopCompletionsSync) stopCompletionsSync();
 
@@ -401,7 +438,7 @@ export async function loadTodayCompletions() {
     var firstSnapshot = true;
 
     stopCompletionsSync = onSnapshot(
-      query(collection(db, 'completions'), where('date', '==', date)),
+      query(collection(db, 'completions'), where('date', '>=', startDate), where('date', '<=', endDate)),
       function (snapshot) {
         const completions = [];
 
@@ -410,6 +447,40 @@ export async function loadTodayCompletions() {
         });
 
         window.homeManagementApp.setCompletions(completions);
+        if (firstSnapshot) {
+          firstSnapshot = false;
+          resolve();
+        }
+      },
+      function (error) {
+        if (firstSnapshot) reject(error);
+      }
+    );
+  });
+}
+
+export async function loadTodayTasks() {
+  const date = formatDateKey(new Date());
+
+  if (stopTodayTasksSync) stopTodayTasksSync();
+
+  await new Promise(function (resolve, reject) {
+    let firstSnapshot = true;
+
+    stopTodayTasksSync = onSnapshot(
+      query(collection(db, 'todayTasks'), where('date', '==', date)),
+      function (snapshot) {
+        const tasks = [];
+
+        snapshot.forEach(function (taskDocument) {
+          tasks.push(Object.assign({ id: taskDocument.id, oneTime: true }, taskDocument.data()));
+        });
+        tasks.sort(function (firstTask, secondTask) {
+          const firstTime = firstTask.createdAt && firstTask.createdAt.toMillis ? firstTask.createdAt.toMillis() : 0;
+          const secondTime = secondTask.createdAt && secondTask.createdAt.toMillis ? secondTask.createdAt.toMillis() : 0;
+          return firstTime - secondTime || firstTask.name.localeCompare(secondTask.name);
+        });
+        window.homeManagementApp.setTodayTasks(tasks);
         if (firstSnapshot) {
           firstSnapshot = false;
           resolve();
@@ -468,12 +539,12 @@ export async function loadTodayMeals() {
   });
 }
 
-export async function loadCurrentWeekMeals() {
-  const weekStart = getWeekStart(new Date());
+export async function loadRollingSevenDayMeals() {
+  const today = new Date();
   const dates = [];
 
   for (let dayOffset = 0; dayOffset < 7; dayOffset += 1) {
-    const date = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + dayOffset);
+    const date = new Date(today.getFullYear(), today.getMonth(), today.getDate() + dayOffset);
     dates.push(formatDateKey(date));
   }
 

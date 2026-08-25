@@ -7,19 +7,19 @@ import { httpsCallable } from "https://www.gstatic.com/firebasejs/12.17.0/fireba
 import { auth, functions } from "./firebase-config.js?v=20260820-13";
 import {
   loadActiveChores,
-  loadCurrentWeekMeals,
-  loadCurrentFamilyReset,
+  loadRollingSevenDayMeals,
   loadHouseholdMembers,
   loadHouseholdContent,
   loadMealFavorites,
   loadParentModeSettings,
   loadShoppingItems,
   loadTodayCompletions,
+  loadTodayTasks,
   loadTodayMeals,
   loadTodayOverrides,
   saveParentPin,
   verifyParentPin
-} from "./firestore-data.js?v=20260820-14";
+} from "./firestore-data.js?v=20260825-21";
 
 const approvedParentAccounts = {
   'jisha18@gmail.com': 'Mom',
@@ -111,11 +111,11 @@ async function showApp(user) {
   await loadHouseholdContent();
   await loadActiveChores();
   await loadTodayCompletions();
+  await loadTodayTasks();
   await loadTodayOverrides();
   await loadTodayMeals();
-  await loadCurrentWeekMeals();
+  await loadRollingSevenDayMeals();
   await loadMealFavorites();
-  await loadCurrentFamilyReset();
   await loadShoppingItems();
   await loadParentModeSettings();
   try {
