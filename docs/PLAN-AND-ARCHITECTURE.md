@@ -1,9 +1,11 @@
 # Home Management App — Product Plan & Architecture
 
+> This public version has been sanitized to remove private household details while preserving the original product and technical architecture.
+
 ## 1. Project Overview
 
 ### Working Goal
-Build a lightweight, family-friendly home management web app that helps a family of six run the household smoothly without creating more mental load.
+Build a lightweight, family-friendly home management web app that helps a family household run smoothly without creating more mental load.
 
 The app should function as a **family command center** inspired by the simplicity and at-a-glance usefulness of products such as Skylight Calendar and Hearth Display, while remaining:
 
@@ -22,22 +24,12 @@ The app is not intended to reproduce every Skylight or Hearth feature. It should
 
 ## 2. Household Context
 
-Family of six:
+The product is designed for a family household with:
 
-- Mom
-- Dad
-- Child 1 — age 11
-- Child 2 — age 8
-- Child 3 — age 8
-- Child 4 — toddler, age 2.5
-
-Home:
-
-- 3-bedroom, 3.5-bath townhouse
-- Kids share one bedroom
-- Parents and toddler share one bedroom
-- One bedroom is used as an office
-- Basement hangout room used by the oldest child and friends
+- Multiple parent accounts
+- Multiple children of different ages
+- Shared family spaces
+- Bedrooms, bathrooms, work areas, and other common household zones
 
 Current household priorities:
 
@@ -48,7 +40,7 @@ Current household priorities:
 - Reduce daily meal-planning decisions
 - Stop cooking a completely new dinner every day
 - Keep bedrooms reset without constant parental nagging
-- Give Mom protected daytime study/course time
+- Protect focused time for study, work, or other priorities
 - Make household responsibility visible and shared
 - Make weekends lighter and more enjoyable
 
@@ -86,7 +78,7 @@ The household model is:
 
 > Everyone who lives here participates in maintaining the home.
 
-The app should support ownership rather than "helping Mom."
+The app should support shared ownership rather than placing responsibility on one parent.
 
 ### 3.5 Parent flexibility
 Life happens.
@@ -101,7 +93,7 @@ Parents need to be able to:
 - Change family settings
 
 ### 3.6 Build for the weakest reasonable device
-The original Lenovo tablet is no longer considered a dependable primary device.
+An older household tablet is no longer considered a dependable primary device.
 
 Version 1 will target:
 
@@ -223,7 +215,7 @@ A single-family implementation is sufficient initially.
 ## 5.4 Authentication
 
 ### Parents
-Mom and Dad have equal administrative permissions.
+Authorized parent accounts have equal administrative permissions.
 
 Preferred eventual authentication:
 
@@ -345,12 +337,9 @@ No clock is required.
 Profiles:
 
 - Family
-- Mom
-- Dad
-- Child 1
-- Child 2
-- Child 3
-- Toddler
+- Parent 1
+- Parent 2
+- Child profiles
 
 Each person has:
 
@@ -391,7 +380,7 @@ Child 1     [✓] Unload dishwasher
 Child 2     [ ] Wipe dining table
 Child 3     [ ] Vacuum under dining table
 Toddler     [ ] Put toys away
-Dad         [ ] Kitchen close
+Parent 2    [ ] Kitchen close
 ```
 
 Completed chores can visually fade or move to a completed section.
@@ -493,7 +482,7 @@ Unload dishwasher
 Child 1 · Today · Daily
 
 Clean out fridge
-Mom · Sep 1 · Monthly
+Parent 1 · Sep 1 · Monthly
 
 Wipe dining table
 Child 2 · Skipped today · Tomorrow · Daily
@@ -514,24 +503,17 @@ master list is required.
 
 ## 8.2 Rooms
 
-Initial rooms/categories:
+Initial rooms/categories include representative household zones such as:
 
-- Kitchen
-- Dining Area
-- Living Room / Family Room
-- Entryway
-- Stairs / Hallways
-- Kids' Bedroom
-- Parents / Toddler Bedroom
-- Office
-- Basement Hangout Room
-- Kids' Bathroom
-- Primary Bathroom
-- Powder Room 1
-- Powder Room 2
-- Laundry Area
-- Whole House
-- Household Admin
+- Kitchen and dining areas
+- Living and shared family spaces
+- Entryways, stairs, and hallways
+- Bedrooms
+- Bathrooms
+- Office or work area
+- Laundry area
+- Whole house
+- Household administration
 
 Rooms must be editable later.
 
@@ -642,12 +624,8 @@ Tomorrow, the chore becomes due again automatically.
 
 Tasks can be assigned to:
 
-- Mom
-- Dad
-- Child 1
-- Child 2
-- Child 3
-- Toddler
+- Parent profiles
+- Child profiles
 - Family
 - Unassigned
 
@@ -663,7 +641,7 @@ Parents need two reassignment options:
 
 ### Today only
 Example:
-Child is sick, so Dad handles today's bathroom chore.
+A child is unavailable, so a parent handles today's bathroom chore.
 
 ### All future occurrences
 Changes the default owner.
@@ -824,7 +802,7 @@ previous Tuesday-through-Monday range.
 
 Explicitly OUT of scope for Version 1.
 
-The family's existing fridge notepad continues to handle groceries.
+An existing household process continues to handle groceries.
 
 Possible later feature only if needed.
 
@@ -864,12 +842,12 @@ FAMILY RESET
 
 11 / 18 COMPLETE
 
-MOM
+PARENT 1
 [ ] Master bathroom
 [ ] Meal plan
 [✓] Fridge check
 
-DAD
+PARENT 2
 [ ] Stovetop
 [✓] Vacuum stairs
 
@@ -897,7 +875,7 @@ The reset has a target duration in real life, but the app does not need to enfor
 
 Parent Mode requires a 4-digit PIN.
 
-Mom and Dad have equal access.
+Authorized parent accounts have equal access.
 
 ---
 
@@ -1023,19 +1001,18 @@ A future basic modern tablet should be able to use:
 - Potential standalone/PWA display
 
 ### Legacy compatibility test
-The existing Lenovo TB-X304F may be tested as an optional household display.
+An older Android tablet may be tested as an optional household display.
 
-Known device baseline:
+Representative legacy-device baseline:
 
-- Lenovo TB-X304F
-- Android 8.1.0
+- Android 8.1
 - Chrome 132
-- 10.1-inch display
+- Approximately 10-inch display
 - Older hardware with possible heat/battery concerns
 
 The app should therefore avoid depending on very new browser-only features for core functionality.
 
-For the Lenovo test:
+For the legacy tablet test:
 
 - Use the normal web app in Chrome first
 - Prefer landscape orientation
@@ -1048,7 +1025,7 @@ For the Lenovo test:
 - Monitor device temperature during short trial use
 - Do not assume the tablet is safe for permanent always-on charging
 
-The Lenovo is a **compatibility target only**, not a project dependency. If it proves unreliable, phones and laptops remain the supported primary devices.
+The legacy tablet is a **compatibility target only**, not a project dependency. If it proves unreliable, phones and laptops remain the supported primary devices.
 
 No rewrite should be required if the family later moves to a newer tablet.
 
@@ -1210,7 +1187,7 @@ on which the family checked the box.
 {
   "choreId": "abc123",
   "date": "2026-08-18",
-  "assignedTo": "dad",
+  "assignedTo": "parent-2",
   "skipped": false
 }
 ```
@@ -1251,7 +1228,7 @@ Each phase must be verified before moving to the next.
 ## Phase 0 — Project Setup & Documentation
 
 ### Goal
-Create the project structure and keep this architecture document as the source of truth.
+Create the project structure and keep this architecture document as the source of truth used to guide Codex throughout implementation.
 
 ### Deliverables
 
@@ -1289,7 +1266,7 @@ home-management-app/
 ### Goal
 Get the UI and family-dashboard experience right before adding any backend.
 
-The primary targets are phones and laptops, with a responsive 10-inch tablet layout included from the beginning. The Lenovo Android 8.1 / Chrome 132 device should be used as an optional legacy compatibility test if it remains usable.
+The primary targets are phones and laptops, with a responsive 10-inch tablet layout included from the beginning. An Android 8.1 / Chrome 132 device may be used as an optional legacy compatibility test if available.
 
 ### Use fake/sample data only.
 
@@ -1316,9 +1293,9 @@ Verify:
 - Buttons are easy to tap
 - Dashboard feels calm, not crowded
 - Family profile filters are visually clear
-- Core dashboard works in Chrome 132 / Android 8.1 if the Lenovo is available for testing
+- Core dashboard works in Chrome 132 / Android 8.1 if a legacy device is available for testing
 - No essential feature depends on PWA installation or a newer browser
-- Lenovo temperature is observed during a short browser-based trial before considering extended display use
+- Legacy-device temperature is observed during a short browser-based trial before considering extended display use
 
 No database work until this is approved.
 
@@ -1448,7 +1425,7 @@ other Phase 6 editing controls here.
 
 Import:
 
-- Six family profiles
+- Generic parent and child profiles
 - Master room-by-room cleaning task list
 - Initial meal examples
 
@@ -1503,8 +1480,8 @@ child-friendly shared interface.
 
 ### Build
 
-- Recognize Mom and Dad as approved parent accounts
-- Give Mom and Dad equal authorization
+- Recognize authorized parent accounts
+- Give authorized parent accounts equal authorization
 - Shared-family viewing
 - Parent Mode
 - 4-digit PIN convenience lock
@@ -1519,7 +1496,7 @@ security boundary.
 - Parent can edit
 - Kids cannot access editing through normal UI
 - Unauthorized browser cannot access private household data
-- Mom and Dad have equal admin rights
+- Authorized parent accounts have equal admin rights
 
 ---
 
@@ -1718,8 +1695,8 @@ Acceptance checks:
 - Are recurring chores correct?
 - Is meal planning easier?
 - Is Family Reset easier?
-- Does Mom spend less time remembering household tasks?
-- Does Dad use the app independently?
+- Do parents spend less time remembering household tasks?
+- Do authorized parents use the app independently?
 
 ### Only after trial consider
 
@@ -1776,7 +1753,7 @@ Version 1 succeeds if:
 
 - Parents can see what matters today
 - Kids can independently see and complete their chores
-- Mom and Dad can reassign tasks when life changes
+- Authorized parents can reassign tasks when life changes
 - Recurring chores appear automatically
 - The full cleaning system is editable
 - Meals are planned for breakfast, lunch, and dinner
@@ -1792,6 +1769,8 @@ Version 1 succeeds if:
 # 24. Working Rule for Implementation
 
 > Build the smallest useful piece, test it, and only then add the next layer.
+
+This document serves as the project source of truth for both human decisions and Codex-guided implementation.
 
 For each phase:
 
