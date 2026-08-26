@@ -8,7 +8,29 @@ The public repository and architecture document have been sanitized to remove pr
 
 ## Screenshots
 
-Sanitized screenshots and a portfolio-safe demonstration can be added here. Private household data, calendar events, account identifiers, and authorization records are intentionally excluded from the repository.
+### Home Dashboard
+
+A calm daily overview of calendar events, chores, meals, and family profiles.
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/23b79b9b-514a-456e-a0e7-744728e45f48" alt="Home Dashboard" width="850">
+</p>
+
+### Chore Management
+
+Parents can edit chore assignments, recurrence, rooms, activity status, and Family Reset participation.
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/9f636d5d-e464-42b1-81bb-6f8b13f406cd" alt="Chore Management" width="750">
+</p>
+
+### Family Reset
+
+Weekly household tasks grouped by family member, with shared progress tracking.
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/b5fc7b8f-283b-4819-96df-6d15212503f8" alt="Family Reset" width="750">
+</p>
 
 ## Problem and Motivation
 
