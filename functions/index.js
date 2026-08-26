@@ -11,17 +11,18 @@ const googleOAuthClient = defineJsonSecret('GOOGLE_OAUTH_CLIENT');
 const calendarScope = 'https://www.googleapis.com/auth/calendar.readonly';
 const callbackUrl = 'https://us-central1-jisha-home-management-app.cloudfunctions.net/calendarOAuthCallback';
 const appUrl = 'https://jisha-home-management-app.web.app/';
-const approvedParentAccounts = ['jisha18@gmail.com', 'to.tonybaby@gmail.com'];
 
-function requireApprovedParent(request) {
-  const email = request.auth && request.auth.token && request.auth.token.email
-    ? request.auth.token.email.toLowerCase() : '';
-
-  if (!request.auth || request.auth.token.email_verified !== true || !approvedParentAccounts.includes(email)) {
+async function requireApprovedParent(request) {
+  if (!request.auth || request.auth.token.email_verified !== true) {
     throw new HttpsError('permission-denied', 'An approved parent account is required.');
   }
 
-  return { uid: request.auth.uid, email };
+  const authorization = await db.collection('authorizedParents').doc(request.auth.uid).get();
+  if (!authorization.exists) {
+    throw new HttpsError('permission-denied', 'An approved parent account is required.');
+  }
+
+  return { uid: request.auth.uid };
 }
 
 function oauthCredentials() {
@@ -42,12 +43,11 @@ function createOAuthClient() {
 }
 
 exports.startCalendarConnection = onCall({ secrets: [googleOAuthClient] }, async function (request) {
-  const parent = requireApprovedParent(request);
+  const parent = await requireApprovedParent(request);
   const state = crypto.randomBytes(32).toString('hex');
 
   await db.collection('privateCalendarOAuthStates').doc(state).set({
     uid: parent.uid,
-    parentEmail: parent.email,
     expiresAt: Timestamp.fromMillis(Date.now() + 10 * 60 * 1000)
   });
 
@@ -75,7 +75,6 @@ exports.calendarOAuthCallback = onRequest({ secrets: [googleOAuthClient] }, asyn
       throw new Error('The Calendar authorization request expired.');
     }
 
-    const stateData = stateDocument.data();
     await stateReference.delete();
 
     const oauthClient = createOAuthClient();
@@ -92,7 +91,6 @@ exports.calendarOAuthCallback = onRequest({ secrets: [googleOAuthClient] }, asyn
     await db.collection('privateCalendarConnections').doc('household').set({
       refreshToken: tokens.refresh_token,
       calendarAccount: primaryCalendar ? primaryCalendar.id : 'Connected Google account',
-      connectedBy: stateData.parentEmail,
       connectedAt: FieldValue.serverTimestamp()
     });
 
@@ -105,7 +103,7 @@ exports.calendarOAuthCallback = onRequest({ secrets: [googleOAuthClient] }, asyn
 });
 
 exports.getCalendarStatus = onCall(async function (request) {
-  const parent = requireApprovedParent(request);
+  await requireApprovedParent(request);
   const connection = await db.collection('privateCalendarConnections').doc('household').get();
 
   if (!connection.exists) return { connected: false };
@@ -113,7 +111,7 @@ exports.getCalendarStatus = onCall(async function (request) {
 });
 
 exports.getCalendarEvents = onCall({ secrets: [googleOAuthClient], timeoutSeconds: 60 }, async function (request) {
-  const parent = requireApprovedParent(request);
+  await requireApprovedParent(request);
   const timeMin = new Date(request.data && request.data.timeMin);
   const timeMax = new Date(request.data && request.data.timeMax);
 
@@ -172,7 +170,7 @@ exports.getCalendarEvents = onCall({ secrets: [googleOAuthClient], timeoutSecond
 });
 
 exports.disconnectCalendar = onCall({ secrets: [googleOAuthClient] }, async function (request) {
-  const parent = requireApprovedParent(request);
+  await requireApprovedParent(request);
   const connectionReference = db.collection('privateCalendarConnections').doc('household');
   const connection = await connectionReference.get();
 

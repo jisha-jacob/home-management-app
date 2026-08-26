@@ -4,7 +4,8 @@ import {
   signOut
 } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-auth.js";
 import { httpsCallable } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-functions.js";
-import { auth, functions } from "./firebase-config.js?v=20260820-13";
+import { doc, getDoc } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-firestore.js";
+import { auth, db, functions } from "./firebase-config.js?v=20260820-13";
 import {
   loadActiveChores,
   loadRollingSevenDayMeals,
@@ -21,10 +22,6 @@ import {
   verifyParentPin
 } from "./firestore-data.js?v=20260825-21";
 
-const approvedParentAccounts = {
-  'jisha18@gmail.com': 'Mom',
-  'to.tonybaby@gmail.com': 'Dad'
-};
 const authScreen = document.getElementById('auth-screen');
 const authMessage = document.getElementById('auth-message');
 const signInButton = document.getElementById('sign-in-button');
@@ -99,14 +96,18 @@ function showSignedOut(message) {
   app.hidden = true;
 }
 
-function isApprovedParent(email) {
-  return Object.prototype.hasOwnProperty.call(approvedParentAccounts, email);
+async function getParentAuthorization(user) {
+  if (!user || !user.emailVerified) return null;
+
+  const authorization = await getDoc(doc(db, 'authorizedParents', user.uid));
+  return authorization.exists() ? authorization.data() : null;
 }
 
-async function showApp(user) {
-  const email = user.email.toLowerCase();
+async function showApp(authorization) {
+  const displayName = typeof authorization.displayName === 'string' && authorization.displayName.trim()
+    ? authorization.displayName.trim() : 'Parent';
 
-  window.homeManagementApp.setSignedInParent(approvedParentAccounts[email], email);
+  window.homeManagementApp.setSignedInParent(displayName);
   await loadHouseholdMembers();
   await loadHouseholdContent();
   await loadActiveChores();
@@ -137,15 +138,15 @@ signInButton.addEventListener('click', async function () {
 
   try {
     const result = await signInWithPopup(auth, new GoogleAuthProvider());
-    const email = result.user.email ? result.user.email.toLowerCase() : '';
+    const authorization = await getParentAuthorization(result.user);
 
-    if (isApprovedParent(email)) {
-      await showApp(result.user);
+    if (authorization) {
+      await showApp(authorization);
       return;
     }
 
     await signOut(auth);
-    showSignedOut('The signed-in account (' + (email || 'no email available') + ') is not approved for this household.');
+    showSignedOut('This Google account is not approved for this household.');
   } catch (error) {
     showSignedOut('Sign-in failed: ' + error.message);
   }
@@ -280,10 +281,10 @@ changeParentPinForm.addEventListener('submit', async function (event) {
 async function showCurrentSession() {
   await auth.authStateReady();
   const user = auth.currentUser;
-  const email = user && user.email ? user.email.toLowerCase() : '';
+  const authorization = await getParentAuthorization(user);
 
-  if (user && isApprovedParent(email)) {
-    await showApp(user);
+  if (authorization) {
+    await showApp(authorization);
     return;
   }
 

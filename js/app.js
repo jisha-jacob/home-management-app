@@ -1459,8 +1459,8 @@ document.addEventListener('DOMContentLoaded', function () {
         : 'Create a 4-digit PIN to prevent accidental changes by children.';
       status.textContent = '';
     },
-    setSignedInParent: function (parentName, email) {
-      document.getElementById('signed-in-parent').textContent = 'Signed in as ' + parentName + ' · ' + email;
+    setSignedInParent: function (parentName) {
+      document.getElementById('signed-in-parent').textContent = 'Signed in as ' + parentName;
     },
     setParentModeActive: function (isActive) {
       var unlockForm = document.getElementById('parent-pin-unlock-form');
