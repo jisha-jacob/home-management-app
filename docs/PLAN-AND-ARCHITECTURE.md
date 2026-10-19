@@ -357,6 +357,7 @@ Tap a person:
 - Filter chores to that person
 - Filter calendar events if possible/relevant
 - Keep meals visible
+- Show that person's today progress bar (see 7.4)
 
 The toddler profile should use especially large, simple controls.
 
@@ -384,6 +385,28 @@ Parent 2    [ ] Kitchen close
 ```
 
 Completed chores can visually fade or move to a completed section.
+
+### Individual Profile Progress
+
+When an individual family member's profile is selected (not `Family`):
+
+- Show a large, kid-readable progress bar with a label such as `3 of 5 done`
+- Base the count on the same due-today data as the chore list: due chores for
+  the date, temporary reassignment overrides, and one-time chores, with
+  skipped chores excluded
+- Update live as completions change, including completions made from another
+  signed-in device
+- When that person's last remaining chore for today is completed, show a
+  brief celebration (message plus a lightweight CSS animation, about 5
+  seconds, dismissible by tapping). Fire it only on the transition from
+  incomplete to all-complete observed during the session — never on initial
+  load, never when the list was already complete, and never when there are
+  zero chores for the day. Fire at most once per person per day. Respect
+  `prefers-reduced-motion` by showing a static message instead of the
+  animation.
+
+This is a progress indicator, not gamification — no streaks, scores, or
+family-wide goals (see Section 22, Rewards / Gamification).
 
 ---
 
@@ -1685,6 +1708,63 @@ Acceptance checks:
 - Result counts are accurate
 - Editing a returned chore preserves and refreshes the active filter selection
 - The controls remain usable on phone, tablet, and desktop layouts
+
+### Approved Enhancement — Per-Person Progress Bar & Celebration
+
+Add a progress bar and a finish-the-list celebration to each family member's
+individual profile view on the Home dashboard (see 7.3 and 7.4).
+
+Build:
+
+- A large, kiosk-readable progress bar with a `3 of 5 done` style label,
+  shown only when an individual profile is selected (not `Family`)
+- Derive the count from the same due-today data the Today's Chores list
+  already uses: due chores for the date, temporary reassignment overrides,
+  and one-time chores, excluding skipped chores
+- Keep the bar live via the existing completions and today-tasks listeners,
+  so a completion made on another signed-in device (such as the wall
+  tablet) updates it immediately
+- A short celebration overlay — a message plus a lightweight CSS-only
+  animation (confetti) — shown for about 5 seconds, or dismissible by tap,
+  click, or Escape, when a person's last remaining chore for today is
+  completed
+- Use the person's name in the message, for example `All done, Child 1!`
+- Respect `prefers-reduced-motion` by showing the static message without
+  the animation
+
+Behavior constraints:
+
+- Trigger the celebration only on the transition from incomplete to
+  all-complete observed during the current session; never on initial page
+  load and never when the list was already complete when the profile was
+  first viewed
+- Do not trigger when there are zero chores due for that person today
+- Fire at most once per person per calendar day, even if a chore is
+  unchecked and rechecked; the daily latch is kept in `localStorage` (not
+  Firestore) and pruned once the date changes
+- No streaks, family-wide goals, rewards, sounds, or notifications — this
+  stays a simple per-person, per-day indicator (see Section 22, Rewards /
+  Gamification, which remains unapproved)
+
+Cost and data constraints:
+
+- No new Firestore fields or collections; the bar and celebration are
+  computed entirely from data already loaded for the Today view
+- No new dependencies; plain HTML/CSS/JS only
+
+Acceptance checks:
+
+- Selecting an individual profile shows the correct `X of Y done` bar and
+  hides it on `Family`
+- The bar updates immediately when a chore is checked, unchecked, or
+  changed from another signed-in device
+- Completing the last chore for a person shows the celebration once; the
+  celebration does not repeat that day after unchecking and rechecking
+- Reloading the page on an already-complete list does not show the
+  celebration
+- A profile with zero chores due today never shows the celebration
+- With `prefers-reduced-motion` enabled, the celebration shows the message
+  without the confetti animation
 
 ### Observe
 

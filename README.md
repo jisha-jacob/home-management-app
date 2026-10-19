@@ -49,6 +49,7 @@ The product was designed around a few practical constraints:
 
 - **Home dashboard:** date, profile filters, today's calendar events, chores, meals, a household reminder, and an upcoming-event preview.
 - **Family profile filtering:** switches the dashboard and chore views between the full household and individual profiles.
+- **Per-person progress and celebration:** a kiosk-readable "X of Y done" progress bar on each individual profile view, plus a brief, dismissible confetti celebration (reduced-motion friendly) the first time that person finishes their list for the day.
 - **Recurring chores:** supports daily, weekday, weekend, weekly, every-two-weeks, and monthly schedules.
 - **Chore management:** parents can add, edit, permanently delete, activate, assign, and categorize chore definitions.
 - **Daily exceptions:** temporary reassignment, skip-today behavior, and one-time chores assigned for a specific day.
