@@ -8,7 +8,7 @@
   <title>Home Management App</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="assets/icons/app-icon-192.png" sizes="192x192" type="image/png">
-  <link rel="stylesheet" href="css/styles.css?v=20260824-20">
+  <link rel="stylesheet" href="css/styles.css?v=20261019-22">
 </head>
 <body>
   <section class="auth-screen" id="auth-screen" aria-labelledby="auth-title">
@@ -47,6 +47,16 @@
       <button class="profile-button profile-child-three" type="button" data-profile-target="child-3" aria-pressed="false">Child 3</button>
       <button class="profile-button profile-toddler" type="button" data-profile-target="toddler" aria-pressed="false">Toddler</button>
     </nav>
+    <div class="chore-celebration" id="chore-celebration" role="status" aria-live="polite" hidden>
+      <div class="chore-celebration-card">
+        <div class="chore-celebration-confetti" aria-hidden="true">
+          <span></span><span></span><span></span><span></span><span></span>
+          <span></span><span></span><span></span><span></span><span></span>
+        </div>
+        <p class="chore-celebration-message" id="chore-celebration-message">All done!</p>
+        <button class="chore-celebration-dismiss" id="chore-celebration-dismiss" type="button">Tap to dismiss</button>
+      </div>
+    </div>
     <div class="dashboard-grid">
       <div class="calendar-column">
         <section class="dashboard-card calendar-card" aria-labelledby="calendar-title">
@@ -67,6 +77,12 @@
       <div class="card-heading">
         <h2 id="chores-title">Today&rsquo;s Chores</h2>
         <span class="chore-count" id="home-chore-count">0 of 6 done</span>
+      </div>
+      <div class="chore-progress" id="chore-progress" hidden>
+        <p class="chore-progress-label" id="chore-progress-label">0 of 0 done</p>
+        <div class="chore-progress-track" role="progressbar" id="chore-progress-track" aria-labelledby="chore-progress-label" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0">
+          <div class="chore-progress-fill" id="chore-progress-fill"></div>
+        </div>
       </div>
       <ul class="chore-list" id="home-chore-list">
         <li class="chore-item">
@@ -497,7 +513,7 @@
     </section>
   </main>
   <script src="data/sample-data.js"></script>
-  <script src="js/app.js?v=20260825-21"></script>
+  <script src="js/app.js?v=20261019-23"></script>
   <script type="module" src="js/auth-loader.js?v=20260825-21"></script>
 </body>
 </html>

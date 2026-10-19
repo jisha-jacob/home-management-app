@@ -12,6 +12,10 @@ document.addEventListener('DOMContentLoaded', function () {
   var shoppingItems = [];
   var removedShoppingItems = [];
   var shoppingUndoTimer = null;
+  var profileAllComplete = {};
+  var celebrationHideTimer = null;
+  var celebrationDateKey = null;
+  var celebratedProfilesToday = {};
 
   var nextMidnight = new Date();
   nextMidnight.setHours(24, 0, 5, 0);
@@ -25,6 +29,52 @@ document.addEventListener('DOMContentLoaded', function () {
 
     return date.getFullYear() + '-' + month + '-' + day;
   }
+
+  function getCelebrationStorageKey(dateKey) {
+    return 'choreCelebration:' + dateKey;
+  }
+
+  function loadCelebratedProfilesToday(dateKey) {
+    try {
+      var raw = window.localStorage.getItem(getCelebrationStorageKey(dateKey));
+      return raw ? JSON.parse(raw) : {};
+    } catch (error) {
+      return {};
+    }
+  }
+
+  function saveCelebratedProfilesToday(dateKey, data) {
+    try {
+      window.localStorage.setItem(getCelebrationStorageKey(dateKey), JSON.stringify(data));
+    } catch (error) {
+      // Ignore storage failures (private browsing, kiosk restrictions, etc).
+    }
+  }
+
+  function pruneOldCelebrationStorage(currentDateKey) {
+    try {
+      var currentKey = getCelebrationStorageKey(currentDateKey);
+      var keysToRemove = [];
+
+      for (var index = 0; index < window.localStorage.length; index += 1) {
+        var key = window.localStorage.key(index);
+
+        if (key && key.indexOf('choreCelebration:') === 0 && key !== currentKey) {
+          keysToRemove.push(key);
+        }
+      }
+
+      keysToRemove.forEach(function (key) {
+        window.localStorage.removeItem(key);
+      });
+    } catch (error) {
+      // Ignore storage failures (private browsing, kiosk restrictions, etc).
+    }
+  }
+
+  celebrationDateKey = formatDateKey(currentDate);
+  pruneOldCelebrationStorage(celebrationDateKey);
+  celebratedProfilesToday = loadCelebratedProfilesToday(celebrationDateKey);
 
   function getCalendarDayNumber(date) {
     return Math.floor(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86400000);
@@ -353,6 +403,76 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+  function renderProfileProgress(completedCount, totalCount) {
+    var container = document.getElementById('chore-progress');
+    var label = document.getElementById('chore-progress-label');
+    var track = document.getElementById('chore-progress-track');
+    var fill = document.getElementById('chore-progress-fill');
+
+    if (!container || !label || !track || !fill) return;
+
+    if (selectedProfile === 'family') {
+      container.hidden = true;
+      return;
+    }
+
+    var percent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+
+    container.hidden = false;
+    label.textContent = completedCount + ' of ' + totalCount + ' done';
+    fill.style.width = percent + '%';
+    track.setAttribute('aria-valuemax', String(Math.max(totalCount, 1)));
+    track.setAttribute('aria-valuenow', String(completedCount));
+  }
+
+  function hideCelebration() {
+    var overlay = document.getElementById('chore-celebration');
+
+    if (celebrationHideTimer) {
+      window.clearTimeout(celebrationHideTimer);
+      celebrationHideTimer = null;
+    }
+
+    if (overlay) overlay.hidden = true;
+  }
+
+  function showCelebration(ownerId) {
+    var overlay = document.getElementById('chore-celebration');
+    var message = document.getElementById('chore-celebration-message');
+    var member = window.homeManagementSampleData.members[ownerId];
+    var name = member ? member.name : 'you';
+
+    if (!overlay || !message) return;
+
+    if (celebrationHideTimer) window.clearTimeout(celebrationHideTimer);
+
+    message.textContent = 'All done, ' + name + '!';
+    overlay.hidden = false;
+    celebrationHideTimer = window.setTimeout(hideCelebration, 5000);
+  }
+
+  function evaluateCelebration(ownerId, completedCount, totalCount) {
+    if (ownerId === 'family') return;
+
+    var isComplete = totalCount > 0 && completedCount === totalCount;
+    var previousComplete = profileAllComplete.hasOwnProperty(ownerId) ? profileAllComplete[ownerId] : null;
+
+    profileAllComplete[ownerId] = isComplete;
+
+    var appElement = document.getElementById('app');
+    var homeScreen = document.getElementById('home-screen');
+    var isHomeVisible = Boolean(appElement) && !appElement.hidden && Boolean(homeScreen) && !homeScreen.hidden;
+
+    if (!isHomeVisible) return;
+    if (previousComplete === null) return;
+    if (previousComplete || !isComplete) return;
+    if (celebratedProfilesToday[ownerId]) return;
+
+    celebratedProfilesToday[ownerId] = true;
+    saveCelebratedProfilesToday(celebrationDateKey, celebratedProfilesToday);
+    showCelebration(ownerId);
+  }
+
   function renderTodayChores() {
     var sampleData = window.homeManagementSampleData;
     var homeCount = document.getElementById('home-chore-count');
@@ -385,6 +505,8 @@ document.addEventListener('DOMContentLoaded', function () {
     renderChoreList('today-chore-list', dueChores, sampleData.members, sampleData.overrides);
     homeCount.textContent = completedCount + ' of ' + profileChores.length + ' done';
     todayCount.textContent = openDueChores.length + (openDueChores.length === 1 ? ' chore due' : ' chores due');
+    renderProfileProgress(completedCount, profileChores.length);
+    evaluateCelebration(selectedProfile, completedCount, profileChores.length);
   }
 
   var todayTaskForm = document.getElementById('today-task-form');
@@ -639,6 +761,20 @@ document.addEventListener('DOMContentLoaded', function () {
     progress.max = Math.max(resetTasks.length, 1);
     progress.value = completedCount;
   }
+
+  var choreCelebration = document.getElementById('chore-celebration');
+  var choreCelebrationDismiss = document.getElementById('chore-celebration-dismiss');
+
+  if (choreCelebration) choreCelebration.addEventListener('click', hideCelebration);
+  if (choreCelebrationDismiss) {
+    choreCelebrationDismiss.addEventListener('click', function (event) {
+      event.stopPropagation();
+      hideCelebration();
+    });
+  }
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape') hideCelebration();
+  });
 
   var profileButtons = document.querySelectorAll('[data-profile-target]');
 
