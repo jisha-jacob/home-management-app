@@ -89,21 +89,21 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
-  function getReminderStorageKey(dateKey, type) {
-    return 'choreReminder:' + dateKey + ':' + type;
+  function getReminderStorageKey(dateKey, type, targetTime) {
+    return 'choreReminder:' + dateKey + ':' + type + ':' + targetTime;
   }
 
-  function hasReminderFired(type) {
+  function hasReminderFired(type, targetTime) {
     try {
-      return window.localStorage.getItem(getReminderStorageKey(celebrationDateKey, type)) === '1';
+      return window.localStorage.getItem(getReminderStorageKey(celebrationDateKey, type, targetTime)) === '1';
     } catch (error) {
       return false;
     }
   }
 
-  function markReminderFired(type) {
+  function markReminderFired(type, targetTime) {
     try {
-      window.localStorage.setItem(getReminderStorageKey(celebrationDateKey, type), '1');
+      window.localStorage.setItem(getReminderStorageKey(celebrationDateKey, type, targetTime), '1');
     } catch (error) {
       // Ignore storage failures (private browsing, kiosk restrictions, etc).
     }
@@ -964,25 +964,25 @@ document.addEventListener('DOMContentLoaded', function () {
 
     var nowMinutes = getCurrentMinutesOfDay();
 
-    if (reminderSettings.checkListEnabled && !hasReminderFired('checkList')) {
+    if (reminderSettings.checkListEnabled && !hasReminderFired('checkList', reminderSettings.checkListTime)) {
       var checkListTarget = parseTimeToMinutes(reminderSettings.checkListTime);
 
       if (checkListTarget !== null && nowMinutes >= checkListTarget) {
         if (getIncompleteMembersToday().length > 0) {
-          markReminderFired('checkList');
+          markReminderFired('checkList', reminderSettings.checkListTime);
           showCheckListReminder();
         }
       }
     }
 
-    if (reminderSettings.namesEnabled && !hasReminderFired('names')) {
+    if (reminderSettings.namesEnabled && !hasReminderFired('names', reminderSettings.namesTime)) {
       var namesTarget = parseTimeToMinutes(reminderSettings.namesTime);
 
       if (namesTarget !== null && nowMinutes >= namesTarget) {
         var incompleteMembers = getIncompleteMembersToday();
 
         if (incompleteMembers.length > 0) {
-          markReminderFired('names');
+          markReminderFired('names', reminderSettings.namesTime);
           showNamesReminder(incompleteMembers);
         }
       }
