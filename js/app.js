@@ -16,6 +16,23 @@ document.addEventListener('DOMContentLoaded', function () {
   var celebrationHideTimer = null;
   var celebrationDateKey = null;
   var celebratedProfilesToday = {};
+  var reminderSettings = {
+    celebrationSoundEnabled: true,
+    checkListEnabled: true,
+    checkListTime: '19:00',
+    namesEnabled: true,
+    namesTime: '20:00'
+  };
+  var audioContext = null;
+  var audioUnlocked = false;
+  var activeCelebrationAudio = null;
+  var sessionLastSoundIndex = -1;
+  var SILENT_AUDIO_DATA_URI = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEAQB8AAEAfAAABAAgAAABmYWN0BAAAAAAAAABkYXRhAAAAAA==';
+  var celebrationVariants = [
+    { key: 'fanfare', icon: '🎉', messageTemplate: 'All done, {name}!' },
+    { key: 'bounce', icon: '⭐', messageTemplate: 'Great job, {name}!' },
+    { key: 'twinkle', icon: '✨', messageTemplate: 'You did it, {name}!' }
+  ];
 
   var nextMidnight = new Date();
   nextMidnight.setHours(24, 0, 5, 0);
@@ -72,12 +89,75 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
+  function getReminderStorageKey(dateKey, type) {
+    return 'choreReminder:' + dateKey + ':' + type;
+  }
+
+  function hasReminderFired(type) {
+    try {
+      return window.localStorage.getItem(getReminderStorageKey(celebrationDateKey, type)) === '1';
+    } catch (error) {
+      return false;
+    }
+  }
+
+  function markReminderFired(type) {
+    try {
+      window.localStorage.setItem(getReminderStorageKey(celebrationDateKey, type), '1');
+    } catch (error) {
+      // Ignore storage failures (private browsing, kiosk restrictions, etc).
+    }
+  }
+
+  function pruneOldReminderStorage(currentDateKey) {
+    try {
+      var currentPrefix = 'choreReminder:' + currentDateKey + ':';
+      var keysToRemove = [];
+
+      for (var index = 0; index < window.localStorage.length; index += 1) {
+        var key = window.localStorage.key(index);
+
+        if (key && key.indexOf('choreReminder:') === 0 && key.indexOf(currentPrefix) !== 0) {
+          keysToRemove.push(key);
+        }
+      }
+
+      keysToRemove.forEach(function (key) {
+        window.localStorage.removeItem(key);
+      });
+    } catch (error) {
+      // Ignore storage failures (private browsing, kiosk restrictions, etc).
+    }
+  }
+
   celebrationDateKey = formatDateKey(currentDate);
   pruneOldCelebrationStorage(celebrationDateKey);
+  pruneOldReminderStorage(celebrationDateKey);
   celebratedProfilesToday = loadCelebratedProfilesToday(celebrationDateKey);
 
   function getCalendarDayNumber(date) {
     return Math.floor(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86400000);
+  }
+
+  function parseTimeToMinutes(value) {
+    var parts = (value || '').split(':');
+    var hours = Number(parts[0]);
+    var minutes = Number(parts[1]);
+
+    if (isNaN(hours) || isNaN(minutes)) return null;
+    return hours * 60 + minutes;
+  }
+
+  function getCurrentMinutesOfDay() {
+    var now = new Date();
+
+    return now.getHours() * 60 + now.getMinutes();
+  }
+
+  function isWithinQuietHours() {
+    var minutes = getCurrentMinutesOfDay();
+
+    return minutes < 7 * 60 || minutes > 21 * 60 + 30;
   }
 
   function parseLocalDate(dateString) {
@@ -425,6 +505,227 @@ document.addEventListener('DOMContentLoaded', function () {
     track.setAttribute('aria-valuenow', String(completedCount));
   }
 
+  function getAudioContext() {
+    if (audioContext) return audioContext;
+
+    var AudioContextClass = window.AudioContext || window.webkitAudioContext;
+
+    if (!AudioContextClass) return null;
+
+    try {
+      audioContext = new AudioContextClass();
+    } catch (error) {
+      audioContext = null;
+    }
+
+    return audioContext;
+  }
+
+  function unlockAudio() {
+    if (audioUnlocked) return;
+
+    var context = getAudioContext();
+
+    try {
+      if (context && context.state === 'suspended') context.resume();
+
+      if (context) {
+        var buffer = context.createBuffer(1, 1, 22050);
+        var source = context.createBufferSource();
+
+        source.buffer = buffer;
+        source.connect(context.destination);
+        source.start(0);
+      }
+    } catch (error) {
+      // Ignore; audio may remain locked on this device.
+    }
+
+    try {
+      var primer = new Audio(SILENT_AUDIO_DATA_URI);
+
+      primer.volume = 0.01;
+      var playPromise = primer.play();
+      if (playPromise && playPromise.catch) playPromise.catch(function () {});
+    } catch (error) {
+      // Ignore; audio element unlock is best-effort.
+    }
+
+    audioUnlocked = true;
+    var indicator = document.getElementById('audio-unlock-indicator');
+    if (indicator) indicator.hidden = true;
+  }
+
+  function getNextCelebrationVariantIndex() {
+    var storageKey = 'choreCelebrationSoundIndex';
+    var storedIndex = null;
+
+    try {
+      var raw = window.localStorage.getItem(storageKey);
+      if (raw !== null) storedIndex = Number(raw);
+    } catch (error) {
+      storedIndex = null;
+    }
+
+    var hasStoredIndex = storedIndex !== null && !isNaN(storedIndex);
+    var previousIndex = hasStoredIndex ? storedIndex : sessionLastSoundIndex;
+    var nextIndex;
+
+    if (hasStoredIndex) {
+      nextIndex = (storedIndex + 1) % celebrationVariants.length;
+    } else if (previousIndex === -1) {
+      nextIndex = Math.floor(Math.random() * celebrationVariants.length);
+    } else {
+      do {
+        nextIndex = Math.floor(Math.random() * celebrationVariants.length);
+      } while (nextIndex === previousIndex && celebrationVariants.length > 1);
+    }
+
+    sessionLastSoundIndex = nextIndex;
+    try {
+      window.localStorage.setItem(storageKey, String(nextIndex));
+    } catch (error) {
+      // Ignore; rotation continues from session memory only.
+    }
+
+    return nextIndex;
+  }
+
+  function scheduleTone(context, masterGain, frequency, startTime, duration, peakGain, type) {
+    var oscillator = context.createOscillator();
+    var gainNode = context.createGain();
+    var attack = Math.min(0.03, duration / 4);
+    var release = Math.min(0.12, duration / 2);
+
+    oscillator.type = type || 'sine';
+    oscillator.frequency.setValueAtTime(frequency, startTime);
+    gainNode.gain.setValueAtTime(0, startTime);
+    gainNode.gain.linearRampToValueAtTime(peakGain, startTime + attack);
+    gainNode.gain.setValueAtTime(peakGain, Math.max(startTime + attack, startTime + duration - release));
+    gainNode.gain.linearRampToValueAtTime(0.0001, startTime + duration);
+
+    oscillator.connect(gainNode);
+    gainNode.connect(masterGain);
+    oscillator.start(startTime);
+    oscillator.stop(startTime + duration + 0.05);
+
+    return oscillator;
+  }
+
+  function playFanfare(context, masterGain, now) {
+    var oscillators = [];
+    var arpeggio = [523.25, 659.25, 783.99, 1046.5];
+
+    arpeggio.forEach(function (frequency, index) {
+      oscillators.push(scheduleTone(context, masterGain, frequency, now + index * 0.18, 0.22, 1, 'triangle'));
+    });
+
+    var chordStart = now + arpeggio.length * 0.18;
+    [1046.5, 1318.5, 1568].forEach(function (frequency) {
+      oscillators.push(scheduleTone(context, masterGain, frequency, chordStart, 2.2, 0.5, 'triangle'));
+    });
+
+    var sparkleStart = now + 3;
+    [1864.66, 2093, 2349.32].forEach(function (frequency, index) {
+      oscillators.push(scheduleTone(context, masterGain, frequency, sparkleStart + index * 0.4, 0.18, 0.6, 'sine'));
+    });
+
+    return oscillators;
+  }
+
+  function playBounce(context, masterGain, now) {
+    var oscillators = [];
+    var scale = [392, 440, 493.88, 523.25, 587.33, 523.25, 493.88, 440, 392, 440, 523.25, 659.25];
+
+    scale.forEach(function (frequency, index) {
+      oscillators.push(scheduleTone(context, masterGain, frequency, now + index * 0.22, 0.2, 1, 'square'));
+    });
+
+    var holdStart = now + scale.length * 0.22;
+    oscillators.push(scheduleTone(context, masterGain, 783.99, holdStart, 2, 0.8, 'square'));
+
+    return oscillators;
+  }
+
+  function playTwinkle(context, masterGain, now) {
+    var oscillators = [];
+    var pattern = [659.25, 659.25, 783.99, 659.25, 880, 783.99, 987.77];
+
+    pattern.forEach(function (frequency, index) {
+      oscillators.push(scheduleTone(context, masterGain, frequency, now + index * 0.32, 0.28, 1, 'sine'));
+    });
+
+    var chordStart = now + pattern.length * 0.32;
+    [987.77, 1174.66, 1396.91, 1567.98].forEach(function (frequency) {
+      oscillators.push(scheduleTone(context, masterGain, frequency, chordStart, 2, 0.35, 'sine'));
+    });
+
+    return oscillators;
+  }
+
+  function stopCelebrationAudio() {
+    if (!activeCelebrationAudio) return;
+
+    var audio = activeCelebrationAudio;
+    activeCelebrationAudio = null;
+
+    try {
+      var now = audio.context.currentTime;
+
+      audio.masterGain.gain.cancelScheduledValues(now);
+      audio.masterGain.gain.setValueAtTime(audio.masterGain.gain.value, now);
+      audio.masterGain.gain.linearRampToValueAtTime(0.0001, now + 0.05);
+      audio.oscillators.forEach(function (oscillator) {
+        try {
+          oscillator.stop(now + 0.06);
+        } catch (error) {
+          // Already stopped.
+        }
+      });
+    } catch (error) {
+      // Ignore; audio may already have ended.
+    }
+  }
+
+  function playCelebrationSound(variantKey) {
+    var context = getAudioContext();
+
+    if (!context) return;
+
+    try {
+      if (context.state === 'suspended') context.resume();
+
+      var masterGain = context.createGain();
+      masterGain.gain.setValueAtTime(0.3, context.currentTime);
+      masterGain.connect(context.destination);
+
+      var now = context.currentTime;
+      var oscillators;
+
+      if (variantKey === 'bounce') {
+        oscillators = playBounce(context, masterGain, now);
+      } else if (variantKey === 'twinkle') {
+        oscillators = playTwinkle(context, masterGain, now);
+      } else {
+        oscillators = playFanfare(context, masterGain, now);
+      }
+
+      activeCelebrationAudio = {
+        context: context,
+        masterGain: masterGain,
+        oscillators: oscillators
+      };
+
+      window.setTimeout(function () {
+        if (activeCelebrationAudio && activeCelebrationAudio.masterGain === masterGain) {
+          activeCelebrationAudio = null;
+        }
+      }, 5200);
+    } catch (error) {
+      // Ignore; fall back silently to the visual celebration only.
+    }
+  }
+
   function hideCelebration() {
     var overlay = document.getElementById('chore-celebration');
 
@@ -433,22 +734,40 @@ document.addEventListener('DOMContentLoaded', function () {
       celebrationHideTimer = null;
     }
 
+    stopCelebrationAudio();
     if (overlay) overlay.hidden = true;
   }
 
   function showCelebration(ownerId) {
     var overlay = document.getElementById('chore-celebration');
+    var card = overlay ? overlay.querySelector('.chore-celebration-card') : null;
     var message = document.getElementById('chore-celebration-message');
+    var icon = document.getElementById('chore-celebration-icon');
     var member = window.homeManagementSampleData.members[ownerId];
     var name = member ? member.name : 'you';
 
     if (!overlay || !message) return;
 
     if (celebrationHideTimer) window.clearTimeout(celebrationHideTimer);
+    stopCelebrationAudio();
 
-    message.textContent = 'All done, ' + name + '!';
+    var variant = celebrationVariants[getNextCelebrationVariantIndex()];
+
+    if (card) {
+      celebrationVariants.forEach(function (variantOption) {
+        card.classList.remove('variant-' + variantOption.key);
+      });
+      card.classList.add('variant-' + variant.key);
+    }
+    if (icon) icon.textContent = variant.icon;
+
+    message.textContent = variant.messageTemplate.replace('{name}', name);
     overlay.hidden = false;
     celebrationHideTimer = window.setTimeout(hideCelebration, 5000);
+
+    if (reminderSettings.celebrationSoundEnabled && audioUnlocked && !isWithinQuietHours()) {
+      playCelebrationSound(variant.key);
+    }
   }
 
   function evaluateCelebration(ownerId, completedCount, totalCount) {
@@ -473,13 +792,8 @@ document.addEventListener('DOMContentLoaded', function () {
     showCelebration(ownerId);
   }
 
-  function renderTodayChores() {
+  function getDueChoresToday() {
     var sampleData = window.homeManagementSampleData;
-    var homeCount = document.getElementById('home-chore-count');
-    var todayCount = document.getElementById('today-chore-count');
-
-    if (!sampleData || !homeCount || !todayCount) return;
-
     var dueChores = sampleData.chores.filter(function (chore) {
       return isChoreDueOnDate(chore, currentDate);
     }).filter(function (chore) {
@@ -487,7 +801,45 @@ document.addEventListener('DOMContentLoaded', function () {
 
       return !override || !override.skipped;
     });
-    dueChores = dueChores.concat(todayTasks);
+
+    return dueChores.concat(todayTasks);
+  }
+
+  function computeIncompleteByMember() {
+    var sampleData = window.homeManagementSampleData;
+    var counts = {};
+
+    getDueChoresToday().forEach(function (chore) {
+      var ownerId = getAssignedOwner(chore, currentDate, sampleData.overrides);
+
+      if (!sampleData.members[ownerId]) return;
+
+      var isOpen = chore.oneTime ? !chore.completed : !isCompletedOnDate(chore.id, currentDate);
+      if (isOpen) counts[ownerId] = (counts[ownerId] || 0) + 1;
+    });
+
+    return counts;
+  }
+
+  function getIncompleteMembersToday() {
+    var sampleData = window.homeManagementSampleData;
+    var counts = computeIncompleteByMember();
+
+    return Object.keys(counts).sort(function (firstId, secondId) {
+      return (sampleData.members[firstId].displayOrder || 0) - (sampleData.members[secondId].displayOrder || 0);
+    }).map(function (memberId) {
+      return { id: memberId, name: sampleData.members[memberId].name, count: counts[memberId] };
+    });
+  }
+
+  function renderTodayChores() {
+    var sampleData = window.homeManagementSampleData;
+    var homeCount = document.getElementById('home-chore-count');
+    var todayCount = document.getElementById('today-chore-count');
+
+    if (!sampleData || !homeCount || !todayCount) return;
+
+    var dueChores = getDueChoresToday();
     var profileChores = dueChores.filter(function (chore) {
       var ownerId = getAssignedOwner(chore, currentDate, sampleData.overrides);
 
@@ -508,6 +860,136 @@ document.addEventListener('DOMContentLoaded', function () {
     renderProfileProgress(completedCount, profileChores.length);
     evaluateCelebration(selectedProfile, completedCount, profileChores.length);
   }
+
+  function showCheckListReminder() {
+    var banner = document.getElementById('check-list-reminder-banner');
+
+    if (banner) banner.hidden = false;
+
+    if (!isWithinQuietHours()) {
+      try {
+        var audio = new Audio('assets/check-tasks.mp3');
+        var playPromise = audio.play();
+
+        if (playPromise && playPromise.catch) playPromise.catch(function () {});
+      } catch (error) {
+        // Ignore; banner still shows.
+      }
+    }
+  }
+
+  function speakNames(members) {
+    if (!window.speechSynthesis || typeof SpeechSynthesisUtterance === 'undefined') return;
+
+    try {
+      var names = members.map(function (member) { return member.name; });
+      var utterance = new SpeechSynthesisUtterance(names.join(', ') + ', your tasks are not done');
+      window.speechSynthesis.speak(utterance);
+    } catch (error) {
+      // Ignore; skip audio.
+    }
+  }
+
+  function playNameClip(members, index, state) {
+    if (index >= members.length) {
+      playNotDoneClip(state);
+      return;
+    }
+
+    try {
+      var fileId = String(members[index].id).toLowerCase().trim();
+      var clip = new Audio('assets/names/' + fileId + '.mp3');
+
+      clip.addEventListener('ended', function () { playNameClip(members, index + 1, state); });
+      clip.addEventListener('error', function () { playNameClip(members, index + 1, state); });
+
+      var playPromise = clip.play();
+      if (playPromise && playPromise.then) {
+        playPromise.then(function () { state.playedSomething = true; }).catch(function () {
+          playNameClip(members, index + 1, state);
+        });
+      } else {
+        state.playedSomething = true;
+      }
+    } catch (error) {
+      playNameClip(members, index + 1, state);
+    }
+  }
+
+  function playNotDoneClip(state) {
+    try {
+      var notDone = new Audio('assets/not-done.mp3');
+      var playPromise = notDone.play();
+
+      if (playPromise && playPromise.then) {
+        playPromise.then(function () { state.playedSomething = true; }).catch(function () {
+          if (!state.playedSomething) speakNames(state.members);
+        });
+      } else {
+        state.playedSomething = true;
+      }
+    } catch (error) {
+      if (!state.playedSomething) speakNames(state.members);
+    }
+  }
+
+  function playNamesAudio(members) {
+    playNameClip(members, 0, { playedSomething: false, members: members });
+  }
+
+  function showNamesReminder(members) {
+    var banner = document.getElementById('names-reminder-banner');
+    var text = document.getElementById('names-reminder-text');
+    var summary = members.map(function (member) {
+      return member.name + ' (' + member.count + (member.count === 1 ? ' chore' : ' chores') + ')';
+    }).join(', ');
+
+    if (text) text.textContent = summary + ' still have chores to finish.';
+    if (banner) banner.hidden = false;
+
+    if (!isWithinQuietHours()) {
+      try {
+        playNamesAudio(members);
+      } catch (error) {
+        // Ignore; banner still shows.
+      }
+    }
+  }
+
+  function checkTimedReminders() {
+    var sampleData = window.homeManagementSampleData;
+    var appElement = document.getElementById('app');
+
+    if (!sampleData || !appElement || appElement.hidden) return;
+
+    var nowMinutes = getCurrentMinutesOfDay();
+
+    if (reminderSettings.checkListEnabled && !hasReminderFired('checkList')) {
+      var checkListTarget = parseTimeToMinutes(reminderSettings.checkListTime);
+
+      if (checkListTarget !== null && nowMinutes >= checkListTarget) {
+        if (getIncompleteMembersToday().length > 0) {
+          markReminderFired('checkList');
+          showCheckListReminder();
+        }
+      }
+    }
+
+    if (reminderSettings.namesEnabled && !hasReminderFired('names')) {
+      var namesTarget = parseTimeToMinutes(reminderSettings.namesTime);
+
+      if (namesTarget !== null && nowMinutes >= namesTarget) {
+        var incompleteMembers = getIncompleteMembersToday();
+
+        if (incompleteMembers.length > 0) {
+          markReminderFired('names');
+          showNamesReminder(incompleteMembers);
+        }
+      }
+    }
+  }
+
+  window.setInterval(checkTimedReminders, 30000);
 
   var todayTaskForm = document.getElementById('today-task-form');
   var todayTaskRows = document.getElementById('today-task-rows');
@@ -774,6 +1256,35 @@ document.addEventListener('DOMContentLoaded', function () {
   }
   document.addEventListener('keydown', function (event) {
     if (event.key === 'Escape') hideCelebration();
+  });
+
+  var checkListReminderDismiss = document.getElementById('check-list-reminder-dismiss');
+  var namesReminderDismiss = document.getElementById('names-reminder-dismiss');
+  var audioUnlockIndicator = document.getElementById('audio-unlock-indicator');
+
+  if (checkListReminderDismiss) {
+    checkListReminderDismiss.addEventListener('click', function () {
+      document.getElementById('check-list-reminder-banner').hidden = true;
+    });
+  }
+
+  if (namesReminderDismiss) {
+    namesReminderDismiss.addEventListener('click', function () {
+      document.getElementById('names-reminder-banner').hidden = true;
+    });
+  }
+
+  if (audioUnlockIndicator) {
+    audioUnlockIndicator.addEventListener('click', unlockAudio);
+  }
+
+  document.addEventListener('click', function firstAppInteractionUnlock() {
+    var appElement = document.getElementById('app');
+
+    if (!appElement || appElement.hidden) return;
+
+    unlockAudio();
+    document.removeEventListener('click', firstAppInteractionUnlock);
   });
 
   var profileButtons = document.querySelectorAll('[data-profile-target]');
@@ -1292,6 +1803,33 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
 
+  document.getElementById('reminder-settings-form').addEventListener('submit', async function (event) {
+    event.preventDefault();
+    if (!parentModeActive) return;
+
+    var saveButton = document.getElementById('save-reminder-settings-button');
+    var status = document.getElementById('reminder-settings-status');
+    var settings = {
+      celebrationSoundEnabled: document.getElementById('celebration-sound-enabled').checked,
+      checkListEnabled: document.getElementById('check-list-reminder-enabled').checked,
+      checkListTime: document.getElementById('check-list-reminder-time').value || '19:00',
+      namesEnabled: document.getElementById('names-reminder-enabled').checked,
+      namesTime: document.getElementById('names-reminder-time').value || '20:00'
+    };
+
+    saveButton.disabled = true;
+    status.textContent = 'Saving reminder settings...';
+
+    try {
+      await window.homeManagementData.saveReminderSettings(settings);
+      status.textContent = 'Reminder settings saved.';
+    } catch (error) {
+      status.textContent = 'Could not save reminder settings: ' + error.message;
+    } finally {
+      saveButton.disabled = false;
+    }
+  });
+
   document.getElementById('family-members-form').addEventListener('submit', async function (event) {
     event.preventDefault();
     if (!parentModeActive) return;
@@ -1556,6 +2094,23 @@ document.addEventListener('DOMContentLoaded', function () {
       document.getElementById('verse-of-week-input').value = verse;
       reminderBanner.hidden = !reminder;
       verseBanner.hidden = !verse;
+    },
+    setReminderSettings: function (settings) {
+      reminderSettings = settings;
+
+      var celebrationToggle = document.getElementById('celebration-sound-enabled');
+      var checkListToggle = document.getElementById('check-list-reminder-enabled');
+      var checkListTimeInput = document.getElementById('check-list-reminder-time');
+      var namesToggle = document.getElementById('names-reminder-enabled');
+      var namesTimeInput = document.getElementById('names-reminder-time');
+
+      if (celebrationToggle) celebrationToggle.checked = Boolean(settings.celebrationSoundEnabled);
+      if (checkListToggle) checkListToggle.checked = Boolean(settings.checkListEnabled);
+      if (checkListTimeInput) checkListTimeInput.value = settings.checkListTime;
+      if (namesToggle) namesToggle.checked = Boolean(settings.namesEnabled);
+      if (namesTimeInput) namesTimeInput.value = settings.namesTime;
+
+      checkTimedReminders();
     },
     setCalendarEvents: function (events) {
       renderCalendarEvents(events);

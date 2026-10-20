@@ -23,6 +23,7 @@ let stopResetSessionSync = null;
 let stopResetTasksSync = null;
 let stopHouseholdContentSync = null;
 let stopShoppingItemsSync = null;
+let stopReminderSettingsSync = null;
 
 function formatDateKey(date) {
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -123,6 +124,9 @@ window.homeManagementData = {
       householdReminder: householdReminder,
       verseOfWeek: verseOfWeek
     });
+  },
+  saveReminderSettings: async function (settings) {
+    await setDoc(doc(db, 'settings', 'reminders'), settings, { merge: true });
   },
   saveMemberNames: async function (memberNames) {
     const batch = writeBatch(db);
@@ -317,6 +321,11 @@ window.homeManagementData = {
       stopShoppingItemsSync();
       stopShoppingItemsSync = null;
     }
+
+    if (stopReminderSettingsSync) {
+      stopReminderSettingsSync();
+      stopReminderSettingsSync = null;
+    }
   }
 };
 
@@ -388,6 +397,36 @@ export async function loadHouseholdContent() {
         window.homeManagementApp.setHouseholdContent({
           householdReminder: content.householdReminder || '',
           verseOfWeek: content.verseOfWeek || ''
+        });
+        if (firstSnapshot) {
+          firstSnapshot = false;
+          resolve();
+        }
+      },
+      function (error) {
+        if (firstSnapshot) reject(error);
+      }
+    );
+  });
+}
+
+export async function loadReminderSettings() {
+  if (stopReminderSettingsSync) stopReminderSettingsSync();
+
+  await new Promise(function (resolve, reject) {
+    let firstSnapshot = true;
+
+    stopReminderSettingsSync = onSnapshot(
+      doc(db, 'settings', 'reminders'),
+      function (settingsDocument) {
+        const data = settingsDocument.exists() ? settingsDocument.data() : {};
+
+        window.homeManagementApp.setReminderSettings({
+          celebrationSoundEnabled: data.celebrationSoundEnabled !== false,
+          checkListEnabled: data.checkListEnabled !== false,
+          checkListTime: data.checkListTime || '19:00',
+          namesEnabled: data.namesEnabled !== false,
+          namesTime: data.namesTime || '20:00'
         });
         if (firstSnapshot) {
           firstSnapshot = false;

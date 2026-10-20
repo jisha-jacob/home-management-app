@@ -1103,6 +1103,20 @@ No:
 
 The app dashboard itself is the reminder system.
 
+### Approved exception (2026-10-20)
+
+A small, locally generated set of on-device audio cues was approved as an
+exception to this section, scoped narrowly to:
+
+- A celebration sound when a person finishes their list (see Section 7.4 and
+  the Phase 11 enhancement below)
+- Two fixed-time evening banners/reminders (`Check your list` and `Names`)
+
+These remain in-app, on-device, and silent by default outside the household's
+active hours. They are not push notifications, email, or SMS, and still
+require no server, Cloud Function, or paid service. True push notifications,
+email, and SMS reminders remain out of scope.
+
 ---
 
 # 18. Explicitly Out of Scope for Version 1
@@ -1742,9 +1756,11 @@ Behavior constraints:
 - Fire at most once per person per calendar day, even if a chore is
   unchecked and rechecked; the daily latch is kept in `localStorage` (not
   Firestore) and pruned once the date changes
-- No streaks, family-wide goals, rewards, sounds, or notifications — this
-  stays a simple per-person, per-day indicator (see Section 22, Rewards /
-  Gamification, which remains unapproved)
+- No streaks, family-wide goals, rewards, or push/email/SMS notifications —
+  this stays a simple per-person, per-day indicator (see Section 22, Rewards
+  / Gamification, which remains unapproved). A celebration sound was later
+  approved as a narrow exception — see "Approved Enhancement — Celebration
+  Sound & Evening Reminders" below.
 
 Cost and data constraints:
 
@@ -1765,6 +1781,45 @@ Acceptance checks:
 - A profile with zero chores due today never shows the celebration
 - With `prefers-reduced-motion` enabled, the celebration shows the message
   without the confetti animation
+
+### Approved Enhancement — Celebration Sound & Evening Reminders
+
+Adds a cheerful celebration sound and two fixed-time household audio
+reminders, approved as a narrow exception to Section 17 (Notifications).
+
+Build:
+
+- A celebration sound (~5 seconds), generated with the Web Audio API (no
+  audio files), played at the same moment as the finish-the-list
+  celebration. Three distinct versions (Fanfare, Bounce, Twinkle) rotate in
+  sequence, with the rotation index kept in `localStorage` so it continues
+  across reloads. Each version has a matching lightweight CSS visual accent
+  and its own short message using the person's name.
+- A 7:00 PM "Check your list" reminder: if any profile has incomplete
+  chores today, play `assets/check-tasks.mp3` and show a dismissible
+  banner. Does nothing if every profile is complete or there are no chores.
+- An 8:00 PM "Names" reminder: if any profile still has incomplete chores,
+  announce those names (per-name clips in `assets/names/`, falling back to
+  `speechSynthesis`, falling back to silence) and show a dismissible banner
+  listing the names with their remaining chore counts.
+- Both reminder times and the celebration sound on/off are configurable in
+  Parent Mode and stored on the existing `settings` collection (no new
+  collection). Each reminder plays at most once per day.
+- Quiet hours (no sound before 7:00 AM or after 9:30 PM) apply to the
+  celebration sound and both reminders; banners and the visual celebration
+  still show. A small "Tap to enable sounds" control unlocks audio for the
+  session on browsers that block autoplay.
+- All audio is wrapped so a failure (missing file, blocked autoplay,
+  unsupported Web Audio) never breaks the dashboard — it silently falls
+  back to the visual celebration or banner alone.
+
+Cost and data constraints:
+
+- No new Firestore collections; reminder settings live in the existing
+  `settings` collection
+- No new dependencies; Web Audio API and `speechSynthesis` are native
+  browser APIs
+- No Cloud Functions or paid services
 
 ### Observe
 

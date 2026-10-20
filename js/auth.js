@@ -13,6 +13,7 @@ import {
   loadHouseholdContent,
   loadMealFavorites,
   loadParentModeSettings,
+  loadReminderSettings,
   loadShoppingItems,
   loadTodayCompletions,
   loadTodayTasks,
@@ -20,7 +21,7 @@ import {
   loadTodayOverrides,
   saveParentPin,
   verifyParentPin
-} from "./firestore-data.js?v=20260825-21";
+} from "./firestore-data.js?v=20261020-22";
 
 const authScreen = document.getElementById('auth-screen');
 const authMessage = document.getElementById('auth-message');
@@ -119,6 +120,7 @@ async function showApp(authorization) {
   await loadMealFavorites();
   await loadShoppingItems();
   await loadParentModeSettings();
+  await loadReminderSettings();
   try {
     await loadCalendarConnection();
   } catch (error) {

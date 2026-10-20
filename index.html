@@ -8,9 +8,10 @@
   <title>Home Management App</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="assets/icons/app-icon-192.png" sizes="192x192" type="image/png">
-  <link rel="stylesheet" href="css/styles.css?v=20261019-22">
+  <link rel="stylesheet" href="css/styles.css?v=20261020-24">
 </head>
 <body>
+  <button class="audio-unlock-indicator" id="audio-unlock-indicator" type="button">🔈 Tap to enable sounds</button>
   <section class="auth-screen" id="auth-screen" aria-labelledby="auth-title">
     <div class="dashboard-card auth-card">
       <p class="screen-kicker">Private family app</p>
@@ -38,6 +39,14 @@
     <aside class="household-reminder verse-of-week" id="verse-of-week-banner" aria-label="Verse of the week" hidden>
       <p id="verse-of-week-text"></p>
     </aside>
+    <aside class="household-reminder evening-reminder" id="check-list-reminder-banner" role="status" aria-live="polite" hidden>
+      <p>Time to check your task lists!</p>
+      <button class="secondary-action" id="check-list-reminder-dismiss" type="button">Dismiss</button>
+    </aside>
+    <aside class="household-reminder evening-reminder" id="names-reminder-banner" role="status" aria-live="polite" hidden>
+      <p id="names-reminder-text"></p>
+      <button class="secondary-action" id="names-reminder-dismiss" type="button">Dismiss</button>
+    </aside>
     <nav class="profile-list" aria-label="Choose a family profile">
       <button class="profile-button profile-family" type="button" data-profile-target="family" aria-pressed="true">Family</button>
       <button class="profile-button profile-mom" type="button" data-profile-target="mom" aria-pressed="false">Mom</button>
@@ -53,6 +62,7 @@
           <span></span><span></span><span></span><span></span><span></span>
           <span></span><span></span><span></span><span></span><span></span>
         </div>
+        <p class="chore-celebration-icon" id="chore-celebration-icon" aria-hidden="true"></p>
         <p class="chore-celebration-message" id="chore-celebration-message">All done!</p>
         <button class="chore-celebration-dismiss" id="chore-celebration-dismiss" type="button">Tap to dismiss</button>
       </div>
@@ -491,6 +501,19 @@
         </form>
         <p class="form-status" id="household-content-status" role="status"></p>
       </section>
+      <section class="dashboard-card reminder-settings-card parent-only-control" aria-labelledby="reminder-settings-title" hidden>
+        <h2 id="reminder-settings-title">Reminders &amp; Sounds</h2>
+        <p>Quiet hours (no sound before 7:00 AM or after 9:30 PM) always apply. Banners still show during quiet hours.</p>
+        <form id="reminder-settings-form">
+          <label class="checkbox-field"><input id="celebration-sound-enabled" type="checkbox"> Play a sound when a chore list is finished</label>
+          <label class="checkbox-field"><input id="check-list-reminder-enabled" type="checkbox"> &ldquo;Check your list&rdquo; reminder</label>
+          <label>Check-list reminder time<input id="check-list-reminder-time" type="time"></label>
+          <label class="checkbox-field"><input id="names-reminder-enabled" type="checkbox"> &ldquo;Names&rdquo; reminder</label>
+          <label>Names reminder time<input id="names-reminder-time" type="time"></label>
+          <button class="primary-action" id="save-reminder-settings-button" type="submit">Save Reminder Settings</button>
+        </form>
+        <p class="form-status" id="reminder-settings-status" role="status"></p>
+      </section>
       <section class="dashboard-card family-members-card parent-only-control" aria-labelledby="family-members-title" hidden>
         <h2 id="family-members-title">Family Members</h2>
         <p>These display names are stored privately in Firestore and are not added to the app&rsquo;s source code.</p>
@@ -513,7 +536,7 @@
     </section>
   </main>
   <script src="data/sample-data.js"></script>
-  <script src="js/app.js?v=20261019-23"></script>
-  <script type="module" src="js/auth-loader.js?v=20260825-21"></script>
+  <script src="js/app.js?v=20261020-24"></script>
+  <script type="module" src="js/auth-loader.js?v=20261020-22"></script>
 </body>
 </html>
