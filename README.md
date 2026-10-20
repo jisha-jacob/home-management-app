@@ -50,6 +50,7 @@ The product was designed around a few practical constraints:
 - **Home dashboard:** date, profile filters, today's calendar events, chores, meals, a household reminder, and an upcoming-event preview.
 - **Family profile filtering:** switches the dashboard and chore views between the full household and individual profiles.
 - **Per-person progress and celebration:** a kiosk-readable "X of Y done" progress bar on each individual profile view, plus a brief, dismissible confetti celebration (reduced-motion friendly) the first time that person finishes their list for the day.
+- **Celebration sound and evening reminders:** three rotating celebration sounds generated with the Web Audio API (no audio files), plus optional 7pm "check your list" and 8pm "names" reminders for anyone with incomplete chores. Each is configurable from Parent Mode, respects quiet hours, and degrades gracefully when audio is blocked or unavailable.
 - **Recurring chores:** supports daily, weekday, weekend, weekly, every-two-weeks, and monthly schedules.
 - **Chore management:** parents can add, edit, permanently delete, activate, assign, and categorize chore definitions.
 - **Daily exceptions:** temporary reassignment, skip-today behavior, and one-time chores assigned for a specific day.
@@ -143,7 +144,7 @@ The phase sequence moved from a static responsive prototype through local recurr
 
 ## Current Project Status
 
-The planned Version 1 workflow is implemented and has been exercised with Firebase-backed household data. The current repository includes the responsive dashboard, chore recurrence and editing, completion synchronization, rolling meal planning, Family Reset, shared shopping, parent authentication and authorization, Parent Mode, and read-only Google Calendar integration.
+The planned Version 1 workflow is implemented and has been exercised with Firebase-backed household data. The current repository includes the responsive dashboard, chore recurrence and editing, completion synchronization, rolling meal planning, Family Reset, shared shopping, parent authentication and authorization, Parent Mode, read-only Google Calendar integration, and an opt-in celebration sound with evening chore reminders.
 
 The app is a focused single-household implementation rather than a multi-tenant product. Some lower-frequency configuration changes use one-time Firestore reads, so another active device may need a refresh to see those edits. Frequently changing data—including completions, meals, Family Reset progress, shopping items, and household content—uses Firestore listeners.
 
