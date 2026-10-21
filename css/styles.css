@@ -1119,6 +1119,24 @@ main {
   color: #66736c;
 }
 
+.celebration-preview-section {
+  margin-top: 20px;
+  border-top: 1px solid #dfe5e1;
+  padding-top: 16px;
+}
+
+.celebration-preview-section h3 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+
+.celebration-preview-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
 .master-task-actions {
   display: flex;
   align-items: center;

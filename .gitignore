@@ -4,3 +4,12 @@ firebase-debug.log
 .edge-test/
 functions/node_modules/
 functions/.secret.local
+
+# Recorded audio clips are not licensed for redistribution in this public repo.
+# They stay on each deploying machine; firebase.json's hosting config still
+# deploys them from the local filesystem regardless of this file.
+assets/celebrate/*
+!assets/celebrate/.gitkeep
+assets/names/
+assets/check-tasks.*
+assets/not-done.*

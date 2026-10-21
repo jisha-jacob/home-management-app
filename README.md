@@ -188,4 +188,6 @@ python -m http.server 8000
 
 Then open `http://localhost:8000`.
 
+Recorded audio clips (celebration sounds, name announcements, and reminder clips) are not included in this repository, since they come from sources not licensed for redistribution. They're expected at `assets/celebrate/celebrate-1.mp3` through `celebrate-12.mp3` (or `.wav`), `assets/names/<member-id>.mp3`, `assets/check-tasks.mp3`, and `assets/not-done.mp3`. Any missing clip is skipped silently, with the app falling back to synthesized sound or a visual-only celebration.
+
 Firebase-backed features require a separate Firebase project, authentication provider, Firestore data, security rules, and Calendar OAuth configuration. Private credentials, account identifiers, authorization documents, and household data are intentionally not provided as setup material.

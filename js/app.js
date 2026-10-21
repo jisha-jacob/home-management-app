@@ -26,7 +26,14 @@ document.addEventListener('DOMContentLoaded', function () {
   var audioContext = null;
   var audioUnlocked = false;
   var activeCelebrationAudio = null;
+  var activeCelebrationClipAudio = null;
   var sessionLastSoundIndex = -1;
+  var sessionLastCelebrationEntryKey = null;
+  var celebrationRevealToken = 0;
+  var detectedCelebrationClips = [];
+  var celebrationClipProbeComplete = false;
+  var CELEBRATION_CLIP_MAX_INDEX = 12;
+  var CELEBRATION_CLIP_EXTENSIONS = ['mp3', 'wav'];
   var SILENT_AUDIO_DATA_URI = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEAQB8AAEAfAAABAAgAAABmYWN0BAAAAAAAAABkYXRhAAAAAA==';
   var celebrationVariants = [
     { key: 'fanfare', icon: '🎉', messageTemplate: 'All done, {name}!' },
@@ -556,39 +563,271 @@ document.addEventListener('DOMContentLoaded', function () {
     if (indicator) indicator.hidden = true;
   }
 
-  function getNextCelebrationVariantIndex() {
-    var storageKey = 'choreCelebrationSoundIndex';
-    var storedIndex = null;
+  function getCelebrationClipPath(clip) {
+    return 'assets/celebrate/celebrate-' + clip.index + '.' + clip.extension;
+  }
+
+  function probeCelebrationClip(index) {
+    return new Promise(function (resolve) {
+      var extensionIndex = 0;
+
+      function tryExtension() {
+        if (extensionIndex >= CELEBRATION_CLIP_EXTENSIONS.length) {
+          resolve(null);
+          return;
+        }
+
+        var extension = CELEBRATION_CLIP_EXTENSIONS[extensionIndex];
+        extensionIndex += 1;
+
+        var probe;
+        var timeoutId;
+        var settled = false;
+
+        function finish(result) {
+          if (settled) return;
+          settled = true;
+          window.clearTimeout(timeoutId);
+          if (probe) {
+            probe.removeEventListener('loadedmetadata', onSuccess);
+            probe.removeEventListener('error', onError);
+            probe.src = '';
+          }
+          if (result) {
+            resolve(result);
+          } else {
+            tryExtension();
+          }
+        }
+
+        function onSuccess() { finish({ index: index, extension: extension }); }
+        function onError() { finish(null); }
+
+        try {
+          probe = new Audio();
+          probe.preload = 'metadata';
+          probe.addEventListener('loadedmetadata', onSuccess);
+          probe.addEventListener('error', onError);
+          probe.src = getCelebrationClipPath({ index: index, extension: extension });
+          timeoutId = window.setTimeout(function () { finish(null); }, 4000);
+        } catch (error) {
+          finish(null);
+        }
+      }
+
+      tryExtension();
+    });
+  }
+
+  function probeCelebrationClips() {
+    var indexes = [];
+
+    for (var i = 1; i <= CELEBRATION_CLIP_MAX_INDEX; i += 1) indexes.push(i);
+
+    return Promise.all(indexes.map(probeCelebrationClip)).then(function (results) {
+      detectedCelebrationClips = results.filter(Boolean).sort(function (first, second) {
+        return first.index - second.index;
+      });
+      celebrationClipProbeComplete = true;
+      renderCelebrationPreviewList();
+      return detectedCelebrationClips;
+    });
+  }
+
+  function buildCelebrationPool() {
+    var pool = celebrationVariants.map(function (variant) { return 'synth:' + variant.key; });
+
+    detectedCelebrationClips.forEach(function (clip) {
+      pool.push('recorded:' + clip.index);
+    });
+
+    return pool;
+  }
+
+  function getCelebrationPresentation(entryKey) {
+    if (!entryKey || entryKey.indexOf('synth:') === 0) {
+      var key = entryKey ? entryKey.slice('synth:'.length) : celebrationVariants[0].key;
+
+      return celebrationVariants.filter(function (variant) { return variant.key === key; })[0]
+        || celebrationVariants[0];
+    }
+
+    var index = Number(entryKey.slice('recorded:'.length));
+    var cycleVariant = celebrationVariants[(index - 1) % celebrationVariants.length] || celebrationVariants[0];
+
+    return { key: cycleVariant.key, icon: cycleVariant.icon, messageTemplate: cycleVariant.messageTemplate };
+  }
+
+  function shuffleArray(items) {
+    var shuffled = items.slice();
+
+    for (var i = shuffled.length - 1; i > 0; i -= 1) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var temp = shuffled[i];
+
+      shuffled[i] = shuffled[j];
+      shuffled[j] = temp;
+    }
+
+    return shuffled;
+  }
+
+  function arraysHaveSameItems(first, second) {
+    if (first.length !== second.length) return false;
+
+    var sortedFirst = first.slice().sort();
+    var sortedSecond = second.slice().sort();
+
+    for (var i = 0; i < sortedFirst.length; i += 1) {
+      if (sortedFirst[i] !== sortedSecond[i]) return false;
+    }
+
+    return true;
+  }
+
+  function pickNextCelebrationEntryKey() {
+    var pool = buildCelebrationPool();
+
+    if (pool.length === 0) return null;
+
+    var storageKey = 'choreCelebrationBag';
+    var state = null;
+    var storageAvailable = true;
 
     try {
       var raw = window.localStorage.getItem(storageKey);
-      if (raw !== null) storedIndex = Number(raw);
+      state = raw ? JSON.parse(raw) : null;
     } catch (error) {
-      storedIndex = null;
+      storageAvailable = false;
+      state = null;
     }
 
-    var hasStoredIndex = storedIndex !== null && !isNaN(storedIndex);
-    var previousIndex = hasStoredIndex ? storedIndex : sessionLastSoundIndex;
-    var nextIndex;
+    if (!storageAvailable) {
+      var randomChoice;
 
-    if (hasStoredIndex) {
-      nextIndex = (storedIndex + 1) % celebrationVariants.length;
-    } else if (previousIndex === -1) {
-      nextIndex = Math.floor(Math.random() * celebrationVariants.length);
-    } else {
-      do {
-        nextIndex = Math.floor(Math.random() * celebrationVariants.length);
-      } while (nextIndex === previousIndex && celebrationVariants.length > 1);
+      if (pool.length > 1) {
+        do {
+          randomChoice = pool[Math.floor(Math.random() * pool.length)];
+        } while (randomChoice === sessionLastCelebrationEntryKey);
+      } else {
+        randomChoice = pool[0];
+      }
+
+      sessionLastCelebrationEntryKey = randomChoice;
+      return randomChoice;
     }
 
-    sessionLastSoundIndex = nextIndex;
+    var remaining = state && Array.isArray(state.remaining) ? state.remaining.slice() : [];
+    var lastPlayed = state ? state.lastPlayed : null;
+    var poolMatches = state && Array.isArray(state.pool) && arraysHaveSameItems(state.pool, pool);
+
+    if (!poolMatches || remaining.length === 0) {
+      remaining = shuffleArray(pool);
+
+      if (lastPlayed && remaining.length > 1 && remaining[0] === lastPlayed) {
+        var swapIndex = 1 + Math.floor(Math.random() * (remaining.length - 1));
+        var firstItem = remaining[0];
+
+        remaining[0] = remaining[swapIndex];
+        remaining[swapIndex] = firstItem;
+      }
+    }
+
+    var chosenEntry = remaining.shift();
+
+    sessionLastCelebrationEntryKey = chosenEntry;
+
     try {
-      window.localStorage.setItem(storageKey, String(nextIndex));
+      window.localStorage.setItem(storageKey, JSON.stringify({
+        pool: pool,
+        remaining: remaining,
+        lastPlayed: chosenEntry
+      }));
     } catch (error) {
-      // Ignore; rotation continues from session memory only.
+      // Ignore; rotation continues from session memory only going forward.
     }
 
-    return nextIndex;
+    return chosenEntry;
+  }
+
+  function peekNextCelebrationEntryKey() {
+    try {
+      var raw = window.localStorage.getItem('choreCelebrationBag');
+      var state = raw ? JSON.parse(raw) : null;
+
+      if (state && Array.isArray(state.remaining) && state.remaining.length > 0) {
+        return state.remaining[0];
+      }
+    } catch (error) {
+      // Ignore; prefetching is best-effort only.
+    }
+
+    return null;
+  }
+
+  function prefetchNextCelebrationClip(entryKey) {
+    if (!entryKey || entryKey.indexOf('recorded:') !== 0) return;
+
+    var index = Number(entryKey.slice('recorded:'.length));
+    var clip = detectedCelebrationClips.filter(function (item) { return item.index === index; })[0];
+
+    if (!clip) return;
+
+    try {
+      var prefetch = new Audio();
+
+      prefetch.preload = 'auto';
+      prefetch.src = getCelebrationClipPath(clip);
+    } catch (error) {
+      // Ignore; prefetching is a best-effort optimization only.
+    }
+  }
+
+  function playRecordedCelebrationClip(clip, onStarted, onFailed) {
+    var audio;
+
+    try {
+      audio = new Audio(getCelebrationClipPath(clip));
+    } catch (error) {
+      onFailed();
+      return;
+    }
+
+    audio.volume = 0.8;
+
+    var settled = false;
+    var safetyTimer;
+
+    function finish(success) {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(safetyTimer);
+      audio.removeEventListener('playing', handleStarted);
+      audio.removeEventListener('error', handleFailure);
+
+      if (success) {
+        activeCelebrationClipAudio = audio;
+        onStarted(audio);
+      } else {
+        onFailed();
+      }
+    }
+
+    function handleStarted() { finish(true); }
+    function handleFailure() { finish(false); }
+
+    audio.addEventListener('playing', handleStarted);
+    audio.addEventListener('error', handleFailure);
+
+    try {
+      var playPromise = audio.play();
+      if (playPromise && playPromise.catch) playPromise.catch(handleFailure);
+    } catch (error) {
+      handleFailure();
+      return;
+    }
+
+    safetyTimer = window.setTimeout(handleFailure, 1500);
   }
 
   function scheduleTone(context, masterGain, frequency, startTime, duration, peakGain, type) {
@@ -726,6 +965,22 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
+  function stopCelebrationPlayback() {
+    stopCelebrationAudio();
+
+    if (activeCelebrationClipAudio) {
+      var clipAudio = activeCelebrationClipAudio;
+
+      activeCelebrationClipAudio = null;
+      try {
+        clipAudio.pause();
+        clipAudio.currentTime = 0;
+      } catch (error) {
+        // Ignore; element may already be gone.
+      }
+    }
+  }
+
   function hideCelebration() {
     var overlay = document.getElementById('chore-celebration');
 
@@ -734,24 +989,19 @@ document.addEventListener('DOMContentLoaded', function () {
       celebrationHideTimer = null;
     }
 
-    stopCelebrationAudio();
+    celebrationRevealToken += 1;
+    stopCelebrationPlayback();
     if (overlay) overlay.hidden = true;
   }
 
-  function showCelebration(ownerId) {
+  function revealCelebration(entryKey, name) {
     var overlay = document.getElementById('chore-celebration');
     var card = overlay ? overlay.querySelector('.chore-celebration-card') : null;
     var message = document.getElementById('chore-celebration-message');
     var icon = document.getElementById('chore-celebration-icon');
-    var member = window.homeManagementSampleData.members[ownerId];
-    var name = member ? member.name : 'you';
+    var variant = getCelebrationPresentation(entryKey);
 
     if (!overlay || !message) return;
-
-    if (celebrationHideTimer) window.clearTimeout(celebrationHideTimer);
-    stopCelebrationAudio();
-
-    var variant = celebrationVariants[getNextCelebrationVariantIndex()];
 
     if (card) {
       celebrationVariants.forEach(function (variantOption) {
@@ -764,10 +1014,139 @@ document.addEventListener('DOMContentLoaded', function () {
     message.textContent = variant.messageTemplate.replace('{name}', name);
     overlay.hidden = false;
     celebrationHideTimer = window.setTimeout(hideCelebration, 5000);
+  }
 
-    if (reminderSettings.celebrationSoundEnabled && audioUnlocked && !isWithinQuietHours()) {
-      playCelebrationSound(variant.key);
+  function showCelebration(ownerId) {
+    var member = window.homeManagementSampleData.members[ownerId];
+    var name = member ? member.name : 'you';
+    var overlay = document.getElementById('chore-celebration');
+    var message = document.getElementById('chore-celebration-message');
+
+    if (!overlay || !message) return;
+
+    if (celebrationHideTimer) window.clearTimeout(celebrationHideTimer);
+    celebrationRevealToken += 1;
+    stopCelebrationPlayback();
+
+    var myToken = celebrationRevealToken;
+    var soundEnabled = Boolean(reminderSettings.celebrationSoundEnabled && audioUnlocked && !isWithinQuietHours());
+    var entryKey = pickNextCelebrationEntryKey() || ('synth:' + celebrationVariants[0].key);
+
+    function revealIfCurrent(keyToShow) {
+      if (myToken !== celebrationRevealToken) return;
+      revealCelebration(keyToShow, name);
     }
+
+    if (entryKey.indexOf('recorded:') === 0 && soundEnabled) {
+      var index = Number(entryKey.slice('recorded:'.length));
+      var clip = detectedCelebrationClips.filter(function (item) { return item.index === index; })[0];
+
+      if (!clip) {
+        revealIfCurrent(entryKey);
+        return;
+      }
+
+      playRecordedCelebrationClip(clip, function () {
+        if (myToken !== celebrationRevealToken) {
+          stopCelebrationPlayback();
+          return;
+        }
+        revealIfCurrent(entryKey);
+        prefetchNextCelebrationClip(peekNextCelebrationEntryKey());
+      }, function () {
+        if (myToken !== celebrationRevealToken) return;
+
+        if (getAudioContext()) {
+          var fallbackKey = 'synth:' + celebrationVariants[Math.floor(Math.random() * celebrationVariants.length)].key;
+
+          revealIfCurrent(fallbackKey);
+          playCelebrationSound(getCelebrationPresentation(fallbackKey).key);
+        } else {
+          revealIfCurrent(entryKey);
+        }
+      });
+      return;
+    }
+
+    revealIfCurrent(entryKey);
+    if (entryKey.indexOf('synth:') === 0 && soundEnabled) {
+      playCelebrationSound(getCelebrationPresentation(entryKey).key);
+    }
+  }
+
+  function renderCelebrationPreviewList() {
+    var container = document.getElementById('celebration-preview-list');
+    var status = document.getElementById('celebration-preview-status');
+
+    if (!container || !status) return;
+
+    container.textContent = '';
+
+    celebrationVariants.forEach(function (variant) {
+      var button = document.createElement('button');
+
+      button.type = 'button';
+      button.className = 'secondary-action';
+      button.textContent = variant.key.charAt(0).toUpperCase() + variant.key.slice(1) + ' (synthesized)';
+      button.addEventListener('click', function () {
+        previewCelebrationEntry('synth:' + variant.key);
+      });
+      container.appendChild(button);
+    });
+
+    detectedCelebrationClips.forEach(function (clip) {
+      var button = document.createElement('button');
+
+      button.type = 'button';
+      button.className = 'secondary-action';
+      button.textContent = 'Clip ' + clip.index;
+      button.addEventListener('click', function () {
+        previewCelebrationEntry('recorded:' + clip.index);
+      });
+      container.appendChild(button);
+    });
+
+    if (!celebrationClipProbeComplete) {
+      status.textContent = 'Checking for recorded clips...';
+      return;
+    }
+
+    var missing = [];
+
+    for (var i = 1; i <= CELEBRATION_CLIP_MAX_INDEX; i += 1) {
+      var found = detectedCelebrationClips.some(function (clip) { return clip.index === i; });
+      if (!found) missing.push('celebrate-' + i);
+    }
+
+    if (detectedCelebrationClips.length === 0) {
+      status.textContent = 'No recorded clips found in assets/celebrate/ — using synthesized sounds only.';
+      return;
+    }
+
+    var summary = detectedCelebrationClips.length + ' of ' + CELEBRATION_CLIP_MAX_INDEX + ' recorded clips detected.';
+    if (missing.length > 0) summary += ' Not found: ' + missing.join(', ') + '.';
+    status.textContent = summary;
+  }
+
+  function previewCelebrationEntry(entryKey) {
+    unlockAudio();
+    stopCelebrationPlayback();
+
+    var status = document.getElementById('celebration-preview-status');
+
+    if (entryKey.indexOf('synth:') === 0) {
+      playCelebrationSound(entryKey.slice('synth:'.length));
+      return;
+    }
+
+    var index = Number(entryKey.slice('recorded:'.length));
+    var clip = detectedCelebrationClips.filter(function (item) { return item.index === index; })[0];
+
+    if (!clip) return;
+
+    playRecordedCelebrationClip(clip, function () {}, function () {
+      if (status) status.textContent = 'Could not play Clip ' + index + ' — check the file.';
+    });
   }
 
   function evaluateCelebration(ownerId, completedCount, totalCount) {
@@ -1148,6 +1527,7 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   renderTodayChores();
+  probeCelebrationClips();
 
   function resetOwnerDetails(ownerId) {
     var member = window.homeManagementSampleData.members[ownerId];
