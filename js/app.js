@@ -25,9 +25,7 @@ document.addEventListener('DOMContentLoaded', function () {
   };
   var audioContext = null;
   var audioUnlocked = false;
-  var activeCelebrationAudio = null;
   var activeCelebrationClipAudio = null;
-  var sessionLastSoundIndex = -1;
   var sessionLastCelebrationEntryKey = null;
   var celebrationRevealToken = 0;
   var detectedCelebrationClips = [];
@@ -632,27 +630,15 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   function buildCelebrationPool() {
-    var pool = celebrationVariants.map(function (variant) { return 'synth:' + variant.key; });
-
-    detectedCelebrationClips.forEach(function (clip) {
-      pool.push('recorded:' + clip.index);
-    });
-
-    return pool;
+    return detectedCelebrationClips.map(function (clip) { return 'recorded:' + clip.index; });
   }
 
   function getCelebrationPresentation(entryKey) {
-    if (!entryKey || entryKey.indexOf('synth:') === 0) {
-      var key = entryKey ? entryKey.slice('synth:'.length) : celebrationVariants[0].key;
-
-      return celebrationVariants.filter(function (variant) { return variant.key === key; })[0]
-        || celebrationVariants[0];
-    }
+    if (!entryKey) return celebrationVariants[0];
 
     var index = Number(entryKey.slice('recorded:'.length));
-    var cycleVariant = celebrationVariants[(index - 1) % celebrationVariants.length] || celebrationVariants[0];
 
-    return { key: cycleVariant.key, icon: cycleVariant.icon, messageTemplate: cycleVariant.messageTemplate };
+    return celebrationVariants[(index - 1) % celebrationVariants.length] || celebrationVariants[0];
   }
 
   function shuffleArray(items) {
@@ -827,154 +813,17 @@ document.addEventListener('DOMContentLoaded', function () {
     safetyTimer = window.setTimeout(handleFailure, 1500);
   }
 
-  function scheduleTone(context, masterGain, frequency, startTime, duration, peakGain, type) {
-    var oscillator = context.createOscillator();
-    var gainNode = context.createGain();
-    var attack = Math.min(0.03, duration / 4);
-    var release = Math.min(0.12, duration / 2);
-
-    oscillator.type = type || 'sine';
-    oscillator.frequency.setValueAtTime(frequency, startTime);
-    gainNode.gain.setValueAtTime(0, startTime);
-    gainNode.gain.linearRampToValueAtTime(peakGain, startTime + attack);
-    gainNode.gain.setValueAtTime(peakGain, Math.max(startTime + attack, startTime + duration - release));
-    gainNode.gain.linearRampToValueAtTime(0.0001, startTime + duration);
-
-    oscillator.connect(gainNode);
-    gainNode.connect(masterGain);
-    oscillator.start(startTime);
-    oscillator.stop(startTime + duration + 0.05);
-
-    return oscillator;
-  }
-
-  function playFanfare(context, masterGain, now) {
-    var oscillators = [];
-    var arpeggio = [523.25, 659.25, 783.99, 1046.5];
-
-    arpeggio.forEach(function (frequency, index) {
-      oscillators.push(scheduleTone(context, masterGain, frequency, now + index * 0.18, 0.22, 1, 'triangle'));
-    });
-
-    var chordStart = now + arpeggio.length * 0.18;
-    [1046.5, 1318.5, 1568].forEach(function (frequency) {
-      oscillators.push(scheduleTone(context, masterGain, frequency, chordStart, 2.2, 0.5, 'triangle'));
-    });
-
-    var sparkleStart = now + 3;
-    [1864.66, 2093, 2349.32].forEach(function (frequency, index) {
-      oscillators.push(scheduleTone(context, masterGain, frequency, sparkleStart + index * 0.4, 0.18, 0.6, 'sine'));
-    });
-
-    return oscillators;
-  }
-
-  function playBounce(context, masterGain, now) {
-    var oscillators = [];
-    var scale = [392, 440, 493.88, 523.25, 587.33, 523.25, 493.88, 440, 392, 440, 523.25, 659.25];
-
-    scale.forEach(function (frequency, index) {
-      oscillators.push(scheduleTone(context, masterGain, frequency, now + index * 0.22, 0.2, 1, 'square'));
-    });
-
-    var holdStart = now + scale.length * 0.22;
-    oscillators.push(scheduleTone(context, masterGain, 783.99, holdStart, 2, 0.8, 'square'));
-
-    return oscillators;
-  }
-
-  function playTwinkle(context, masterGain, now) {
-    var oscillators = [];
-    var pattern = [659.25, 659.25, 783.99, 659.25, 880, 783.99, 987.77];
-
-    pattern.forEach(function (frequency, index) {
-      oscillators.push(scheduleTone(context, masterGain, frequency, now + index * 0.32, 0.28, 1, 'sine'));
-    });
-
-    var chordStart = now + pattern.length * 0.32;
-    [987.77, 1174.66, 1396.91, 1567.98].forEach(function (frequency) {
-      oscillators.push(scheduleTone(context, masterGain, frequency, chordStart, 2, 0.35, 'sine'));
-    });
-
-    return oscillators;
-  }
-
-  function stopCelebrationAudio() {
-    if (!activeCelebrationAudio) return;
-
-    var audio = activeCelebrationAudio;
-    activeCelebrationAudio = null;
-
-    try {
-      var now = audio.context.currentTime;
-
-      audio.masterGain.gain.cancelScheduledValues(now);
-      audio.masterGain.gain.setValueAtTime(audio.masterGain.gain.value, now);
-      audio.masterGain.gain.linearRampToValueAtTime(0.0001, now + 0.05);
-      audio.oscillators.forEach(function (oscillator) {
-        try {
-          oscillator.stop(now + 0.06);
-        } catch (error) {
-          // Already stopped.
-        }
-      });
-    } catch (error) {
-      // Ignore; audio may already have ended.
-    }
-  }
-
-  function playCelebrationSound(variantKey) {
-    var context = getAudioContext();
-
-    if (!context) return;
-
-    try {
-      if (context.state === 'suspended') context.resume();
-
-      var masterGain = context.createGain();
-      masterGain.gain.setValueAtTime(0.3, context.currentTime);
-      masterGain.connect(context.destination);
-
-      var now = context.currentTime;
-      var oscillators;
-
-      if (variantKey === 'bounce') {
-        oscillators = playBounce(context, masterGain, now);
-      } else if (variantKey === 'twinkle') {
-        oscillators = playTwinkle(context, masterGain, now);
-      } else {
-        oscillators = playFanfare(context, masterGain, now);
-      }
-
-      activeCelebrationAudio = {
-        context: context,
-        masterGain: masterGain,
-        oscillators: oscillators
-      };
-
-      window.setTimeout(function () {
-        if (activeCelebrationAudio && activeCelebrationAudio.masterGain === masterGain) {
-          activeCelebrationAudio = null;
-        }
-      }, 5200);
-    } catch (error) {
-      // Ignore; fall back silently to the visual celebration only.
-    }
-  }
-
   function stopCelebrationPlayback() {
-    stopCelebrationAudio();
+    if (!activeCelebrationClipAudio) return;
 
-    if (activeCelebrationClipAudio) {
-      var clipAudio = activeCelebrationClipAudio;
+    var clipAudio = activeCelebrationClipAudio;
 
-      activeCelebrationClipAudio = null;
-      try {
-        clipAudio.pause();
-        clipAudio.currentTime = 0;
-      } catch (error) {
-        // Ignore; element may already be gone.
-      }
+    activeCelebrationClipAudio = null;
+    try {
+      clipAudio.pause();
+      clipAudio.currentTime = 0;
+    } catch (error) {
+      // Ignore; element may already be gone.
     }
   }
 
@@ -1027,48 +876,37 @@ document.addEventListener('DOMContentLoaded', function () {
 
     var myToken = celebrationRevealToken;
     var soundEnabled = Boolean(reminderSettings.celebrationSoundEnabled && audioUnlocked && !isWithinQuietHours());
-    var entryKey = pickNextCelebrationEntryKey() || ('synth:' + celebrationVariants[0].key);
+    var entryKey = pickNextCelebrationEntryKey();
 
     function revealIfCurrent(keyToShow) {
       if (myToken !== celebrationRevealToken) return;
       revealCelebration(keyToShow, name);
     }
 
-    if (entryKey.indexOf('recorded:') === 0 && soundEnabled) {
-      var index = Number(entryKey.slice('recorded:'.length));
-      var clip = detectedCelebrationClips.filter(function (item) { return item.index === index; })[0];
-
-      if (!clip) {
-        revealIfCurrent(entryKey);
-        return;
-      }
-
-      playRecordedCelebrationClip(clip, function () {
-        if (myToken !== celebrationRevealToken) {
-          stopCelebrationPlayback();
-          return;
-        }
-        revealIfCurrent(entryKey);
-        prefetchNextCelebrationClip(peekNextCelebrationEntryKey());
-      }, function () {
-        if (myToken !== celebrationRevealToken) return;
-
-        if (getAudioContext()) {
-          var fallbackKey = 'synth:' + celebrationVariants[Math.floor(Math.random() * celebrationVariants.length)].key;
-
-          revealIfCurrent(fallbackKey);
-          playCelebrationSound(getCelebrationPresentation(fallbackKey).key);
-        } else {
-          revealIfCurrent(entryKey);
-        }
-      });
+    if (!entryKey || !soundEnabled) {
+      revealIfCurrent(entryKey);
       return;
     }
 
-    revealIfCurrent(entryKey);
-    if (entryKey.indexOf('synth:') === 0 && soundEnabled) {
-      playCelebrationSound(getCelebrationPresentation(entryKey).key);
+    var index = Number(entryKey.slice('recorded:'.length));
+    var clip = detectedCelebrationClips.filter(function (item) { return item.index === index; })[0];
+
+    if (!clip) {
+      revealIfCurrent(entryKey);
+      return;
     }
+
+    playRecordedCelebrationClip(clip, function () {
+      if (myToken !== celebrationRevealToken) {
+        stopCelebrationPlayback();
+        return;
+      }
+      revealIfCurrent(entryKey);
+      prefetchNextCelebrationClip(peekNextCelebrationEntryKey());
+    }, function () {
+      // Playback failed despite passing the earlier probe; fall back to the visual only — no synthesized audio.
+      revealIfCurrent(entryKey);
+    });
   }
 
   function evaluateCelebration(ownerId, completedCount, totalCount) {
