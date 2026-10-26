@@ -510,6 +510,13 @@
           <label>Check-list reminder time<input id="check-list-reminder-time" type="time"></label>
           <label class="checkbox-field"><input id="names-reminder-enabled" type="checkbox"> &ldquo;Names&rdquo; reminder</label>
           <label>Names reminder time<input id="names-reminder-time" type="time"></label>
+          <label>Names reminder style
+            <select id="names-reminder-style">
+              <option value="celebrate">Celebrate finishers</option>
+              <option value="callout">Call out remaining (old behavior)</option>
+              <option value="off">Off</option>
+            </select>
+          </label>
           <button class="primary-action" id="save-reminder-settings-button" type="submit">Save Reminder Settings</button>
         </form>
         <p class="form-status" id="reminder-settings-status" role="status"></p>

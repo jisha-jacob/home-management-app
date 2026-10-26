@@ -426,7 +426,8 @@ export async function loadReminderSettings() {
           checkListEnabled: data.checkListEnabled !== false,
           checkListTime: data.checkListTime || '19:00',
           namesEnabled: data.namesEnabled !== false,
-          namesTime: data.namesTime || '20:00'
+          namesTime: data.namesTime || '20:00',
+          namesStyle: data.namesStyle || 'celebrate'
         });
         if (firstSnapshot) {
           firstSnapshot = false;

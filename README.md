@@ -50,7 +50,7 @@ The product was designed around a few practical constraints:
 - **Home dashboard:** date, profile filters, today's calendar events, chores, meals, a household reminder, and an upcoming-event preview.
 - **Family profile filtering:** switches the dashboard and chore views between the full household and individual profiles.
 - **Per-person progress and celebration:** a kiosk-readable "X of Y done" progress bar on each individual profile view, plus a brief, dismissible confetti celebration (reduced-motion friendly) the first time that person finishes their list for the day.
-- **Celebration sound and evening reminders:** three rotating celebration sounds generated with the Web Audio API (no audio files), plus optional 7pm "check your list" and 8pm "names" reminders for anyone with incomplete chores. Each is configurable from Parent Mode, respects quiet hours, and degrades gracefully when audio is blocked or unavailable.
+- **Celebration sound and evening reminders:** three rotating celebration sounds generated with the Web Audio API (no audio files), plus optional 7pm "check your list" and 8pm reminders. The 8pm reminder celebrates the people who have finished all their chores by default (or can call out remaining chores, or be turned off). Each is configurable from Parent Mode, respects quiet hours, and degrades gracefully when audio is blocked or unavailable.
 - **Recurring chores:** supports daily, weekday, weekend, weekly, every-two-weeks, and monthly schedules.
 - **Chore management:** parents can add, edit, permanently delete, activate, assign, and categorize chore definitions.
 - **Daily exceptions:** temporary reassignment, skip-today behavior, and one-time chores assigned for a specific day.
@@ -188,6 +188,6 @@ python -m http.server 8000
 
 Then open `http://localhost:8000`.
 
-Recorded audio clips (celebration sounds, name announcements, and reminder clips) are not included in this repository, since they come from sources not licensed for redistribution. They're expected at `assets/celebrate/celebrate-1.mp3` through `celebrate-12.mp3` (or `.wav`), `assets/names/<member-id>.mp3`, `assets/check-tasks.mp3`, and `assets/not-done.mp3`. Any missing clip is skipped silently, with the app falling back to synthesized sound or a visual-only celebration.
+Recorded audio clips (celebration sounds, name announcements, and reminder clips) are not included in this repository, since they come from sources not licensed for redistribution. They're expected at `assets/celebrate/celebrate-1.mp3` through `celebrate-12.mp3` (or `.wav`), `assets/names/<member-id>.mp3`, `assets/check-tasks.mp3`, `assets/not-done.mp3`, and the 8pm "great job" clips `assets/shout-out.mp3` (plays first) and optional `assets/shout-out-end.mp3` (plays last), each also accepted as `.wav`. These are personal voice recordings and are git-ignored. Any missing clip is skipped silently, with the app falling back to synthesized sound or a visual-only celebration.
 
 Firebase-backed features require a separate Firebase project, authentication provider, Firestore data, security rules, and Calendar OAuth configuration. Private credentials, account identifiers, authorization documents, and household data are intentionally not provided as setup material.

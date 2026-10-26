@@ -1499,6 +1499,10 @@ main {
   text-align: left;
 }
 
+.evening-reminder.finisher-reminder {
+  background: #dff3e1;
+}
+
 .audio-unlock-indicator {
   position: fixed;
   right: 12px;

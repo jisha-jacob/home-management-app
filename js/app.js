@@ -21,7 +21,8 @@ document.addEventListener('DOMContentLoaded', function () {
     checkListEnabled: true,
     checkListTime: '19:00',
     namesEnabled: true,
-    namesTime: '20:00'
+    namesTime: '20:00',
+    namesStyle: 'celebrate'
   };
   var audioContext = null;
   var audioUnlocked = false;
@@ -1084,11 +1085,139 @@ document.addEventListener('DOMContentLoaded', function () {
     }).join(', ');
 
     if (text) text.textContent = summary + ' still have chores to finish.';
-    if (banner) banner.hidden = false;
+    if (banner) {
+      banner.classList.remove('finisher-reminder');
+      banner.hidden = false;
+    }
 
     if (!isWithinQuietHours()) {
       try {
         playNamesAudio(members);
+      } catch (error) {
+        // Ignore; banner still shows.
+      }
+    }
+  }
+
+  function getFinisherStatus() {
+    var sampleData = window.homeManagementSampleData;
+    var totals = {};
+    var open = {};
+
+    getDueChoresToday().forEach(function (chore) {
+      var ownerId = getAssignedOwner(chore, currentDate, sampleData.overrides);
+
+      if (!sampleData.members[ownerId]) return;
+
+      totals[ownerId] = (totals[ownerId] || 0) + 1;
+      if (chore.oneTime ? !chore.completed : !isCompletedOnDate(chore.id, currentDate)) {
+        open[ownerId] = (open[ownerId] || 0) + 1;
+      }
+    });
+
+    var eligibleIds = Object.keys(totals);
+    var done = eligibleIds.filter(function (memberId) {
+      return !open[memberId];
+    }).sort(function (firstId, secondId) {
+      return (sampleData.members[firstId].displayOrder || 0) - (sampleData.members[secondId].displayOrder || 0);
+    }).map(function (memberId) {
+      return { id: memberId, name: sampleData.members[memberId].name };
+    });
+
+    return { eligibleCount: eligibleIds.length, done: done };
+  }
+
+  function joinNames(names) {
+    if (names.length < 2) return names.join('');
+    return names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
+  }
+
+  // Plays basePath.mp3, falling back to basePath.wav. Calls done(true) once played to the end, done(false) if neither works.
+  function playClipWithFallback(basePath, done) {
+    var extensions = ['mp3', 'wav'];
+    var extensionIndex = 0;
+
+    function attempt() {
+      if (extensionIndex >= extensions.length) {
+        done(false);
+        return;
+      }
+
+      var settled = false;
+
+      function tryNext() {
+        if (settled) return;
+        settled = true;
+        attempt();
+      }
+
+      try {
+        var audio = new Audio(basePath + '.' + extensions[extensionIndex]);
+
+        extensionIndex += 1;
+        audio.addEventListener('ended', function () {
+          if (settled) return;
+          settled = true;
+          done(true);
+        });
+        audio.addEventListener('error', tryNext);
+
+        var playPromise = audio.play();
+        if (playPromise && playPromise.catch) playPromise.catch(tryNext);
+      } catch (error) {
+        tryNext();
+      }
+    }
+
+    attempt();
+  }
+
+  function speakFinishers(names) {
+    if (!window.speechSynthesis || typeof SpeechSynthesisUtterance === 'undefined') return;
+
+    try {
+      window.speechSynthesis.speak(new SpeechSynthesisUtterance('Great job, ' + joinNames(names) + '!'));
+    } catch (error) {
+      // Ignore; skip audio.
+    }
+  }
+
+  function playFinisherAudio(done) {
+    function playNameAt(index) {
+      if (index >= done.length) {
+        playClipWithFallback('assets/shout-out-end', function () {});
+        return;
+      }
+
+      playClipWithFallback('assets/names/' + String(done[index].id).toLowerCase().trim(), function () {
+        playNameAt(index + 1);
+      });
+    }
+
+    playClipWithFallback('assets/shout-out', function (played) {
+      if (played) {
+        playNameAt(0);
+      } else {
+        speakFinishers(done.map(function (member) { return member.name; }));
+      }
+    });
+  }
+
+  function showFinishersReminder(done) {
+    var banner = document.getElementById('names-reminder-banner');
+    var text = document.getElementById('names-reminder-text');
+
+    if (text) {
+      text.textContent = '⭐ Great job today: ' + joinNames(done.map(function (member) { return member.name; })) + '! 🎉';
+    }
+    if (banner) {
+      banner.classList.add('finisher-reminder');
+      banner.hidden = false;
+    }
+
+    if (!isWithinQuietHours()) {
+      try {
+        playFinisherAudio(done);
       } catch (error) {
         // Ignore; banner still shows.
       }
@@ -1114,15 +1243,30 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     }
 
-    if (reminderSettings.namesEnabled && !hasReminderFired('names', reminderSettings.namesTime)) {
+    var namesStyle = reminderSettings.namesStyle || 'celebrate';
+
+    if (reminderSettings.namesEnabled && namesStyle !== 'off' && !hasReminderFired('names', reminderSettings.namesTime)) {
       var namesTarget = parseTimeToMinutes(reminderSettings.namesTime);
 
       if (namesTarget !== null && nowMinutes >= namesTarget) {
-        var incompleteMembers = getIncompleteMembersToday();
+        if (namesStyle === 'callout') {
+          var incompleteMembers = getIncompleteMembersToday();
 
-        if (incompleteMembers.length > 0) {
-          markReminderFired('names', reminderSettings.namesTime);
-          showNamesReminder(incompleteMembers);
+          if (incompleteMembers.length > 0) {
+            markReminderFired('names', reminderSettings.namesTime);
+            showNamesReminder(incompleteMembers);
+          }
+        } else {
+          var finisherStatus = getFinisherStatus();
+
+          if (finisherStatus.eligibleCount > 0) {
+            markReminderFired('names', reminderSettings.namesTime);
+            if (finisherStatus.done.length > 0) {
+              showFinishersReminder(finisherStatus.done);
+            } else {
+              showCheckListReminder();
+            }
+          }
         }
       }
     }
@@ -1954,7 +2098,8 @@ document.addEventListener('DOMContentLoaded', function () {
       checkListEnabled: document.getElementById('check-list-reminder-enabled').checked,
       checkListTime: document.getElementById('check-list-reminder-time').value || '19:00',
       namesEnabled: document.getElementById('names-reminder-enabled').checked,
-      namesTime: document.getElementById('names-reminder-time').value || '20:00'
+      namesTime: document.getElementById('names-reminder-time').value || '20:00',
+      namesStyle: document.getElementById('names-reminder-style').value || 'celebrate'
     };
 
     saveButton.disabled = true;
@@ -2249,6 +2394,9 @@ document.addEventListener('DOMContentLoaded', function () {
       if (checkListTimeInput) checkListTimeInput.value = settings.checkListTime;
       if (namesToggle) namesToggle.checked = Boolean(settings.namesEnabled);
       if (namesTimeInput) namesTimeInput.value = settings.namesTime;
+
+      var namesStyleSelect = document.getElementById('names-reminder-style');
+      if (namesStyleSelect) namesStyleSelect.value = settings.namesStyle || 'celebrate';
 
       checkTimedReminders();
     },
