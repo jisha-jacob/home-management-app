@@ -1172,35 +1172,44 @@ document.addEventListener('DOMContentLoaded', function () {
     attempt();
   }
 
-  function speakFinishers(names) {
+  function speakFinishers(text) {
     if (!window.speechSynthesis || typeof SpeechSynthesisUtterance === 'undefined') return;
 
     try {
-      window.speechSynthesis.speak(new SpeechSynthesisUtterance('Great job, ' + joinNames(names) + '!'));
+      window.speechSynthesis.speak(new SpeechSynthesisUtterance(text));
     } catch (error) {
       // Ignore; skip audio.
     }
   }
 
   function playFinisherAudio(done) {
+    var anyNamePlayed = false;
+
+    function playShoutOut() {
+      playClipWithFallback('assets/shout-out', function (played) {
+        if (played) {
+          playClipWithFallback('assets/shout-out-end', function () {});
+        } else if (anyNamePlayed) {
+          speakFinishers('Great job!');
+        } else {
+          speakFinishers('Great job, ' + joinNames(done.map(function (member) { return member.name; })) + '!');
+        }
+      });
+    }
+
     function playNameAt(index) {
       if (index >= done.length) {
-        playClipWithFallback('assets/shout-out-end', function () {});
+        playShoutOut();
         return;
       }
 
-      playClipWithFallback('assets/names/' + String(done[index].id).toLowerCase().trim(), function () {
+      playClipWithFallback('assets/names/' + String(done[index].id).toLowerCase().trim(), function (played) {
+        if (played) anyNamePlayed = true;
         playNameAt(index + 1);
       });
     }
 
-    playClipWithFallback('assets/shout-out', function (played) {
-      if (played) {
-        playNameAt(0);
-      } else {
-        speakFinishers(done.map(function (member) { return member.name; }));
-      }
-    });
+    playNameAt(0);
   }
 
   function showFinishersReminder(done) {
