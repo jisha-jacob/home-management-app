@@ -123,7 +123,7 @@ Avoid services that require paid plans or credit cards unless absolutely necessa
 - Calendar: Read-only Google Calendar integration
 - Domain: Use Firebase-provided domain initially
 - Notifications: None
-- File/image storage: None
+- File/image storage: None (exception: private family photos stored as small JPEG data URLs in Firestore — see Phase 11, Family Photo Tile)
 - Native mobile app: None
 - Paid APIs: None
 
@@ -1134,7 +1134,7 @@ Do not add:
 - Push notifications
 - AI meal generation
 - Voice assistant
-- Photo uploads
+- Photo uploads (exception: Parent Mode family photos — see Phase 11, Family Photo Tile)
 - File uploads
 - Family chat
 - Messaging
@@ -1820,6 +1820,33 @@ Cost and data constraints:
 - No new dependencies; Web Audio API and `speechSynthesis` are native
   browser APIs
 - No Cloud Functions or paid services
+
+### Approved Enhancement — Family Photo Tile
+
+Replaces the family-wide Today's Chores tile on Home with a private rotating
+family photo. Individual profile views (list, progress bar, celebration) are
+unchanged: selecting a person still shows their chores card. With `Family`
+selected, a small caption such as `6 of 46 done today` shows the same
+family-wide count the old tile used.
+
+Build:
+
+- One Firestore document per photo in `familyPhotos` (`dataUrl`, `width`,
+  `height`, `createdAt`) plus one small `familyPhotosMeta/index` document
+  holding the ordered array of photo IDs. No Firebase Storage or external
+  services.
+- Parent Mode adds photos (multi-file picker, resized in the browser to a
+  1280 px longest side and about 300 KB, hard cap 700 KB of data-URL text) and
+  removes them from a paginated manage view. Limit: 100 photos.
+- Home shows one photo at a time, rotating every 30 minutes
+  (`PHOTO_ROTATION_MINUTES`), from a shuffled bag persisted in `localStorage`.
+  Tapping the tile skips to the next photo. Only the current photo is fetched,
+  and the next is preloaded; the index is read at load and at each rotation,
+  with no realtime listeners on the collection.
+- Firestore rules use the same approved-parent check as the other household
+  collections.
+
+Constraints: no new dependencies, no photo files in the repository or `assets/`.
 
 ### Observe
 

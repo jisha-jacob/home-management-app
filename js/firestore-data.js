@@ -1,4 +1,6 @@
 import {
+  arrayRemove,
+  arrayUnion,
   collection,
   deleteDoc,
   doc,
@@ -49,6 +51,40 @@ async function hashPin(pin) {
 }
 
 window.homeManagementData = {
+  loadFamilyPhotoIndex: async function () {
+    const indexDocument = await getDoc(doc(db, 'familyPhotosMeta', 'index'));
+    const ids = indexDocument.exists() ? indexDocument.data().ids : [];
+
+    return Array.isArray(ids) ? ids.filter(function (id) { return typeof id === 'string'; }) : [];
+  },
+
+  loadFamilyPhoto: async function (photoId) {
+    const photoDocument = await getDoc(doc(db, 'familyPhotos', photoId));
+
+    if (!photoDocument.exists() || typeof photoDocument.data().dataUrl !== 'string') return null;
+
+    return Object.assign({ id: photoDocument.id }, photoDocument.data());
+  },
+
+  addFamilyPhoto: async function (photo) {
+    const photoReference = doc(collection(db, 'familyPhotos'));
+
+    await setDoc(photoReference, {
+      dataUrl: photo.dataUrl,
+      width: photo.width,
+      height: photo.height,
+      createdAt: serverTimestamp()
+    });
+    await setDoc(doc(db, 'familyPhotosMeta', 'index'), { ids: arrayUnion(photoReference.id) }, { merge: true });
+
+    return photoReference.id;
+  },
+
+  removeFamilyPhoto: async function (photoId) {
+    await setDoc(doc(db, 'familyPhotosMeta', 'index'), { ids: arrayRemove(photoId) }, { merge: true });
+    await deleteDoc(doc(db, 'familyPhotos', photoId));
+  },
+
   loadMasterChores: async function (filters) {
     const constraints = [];
 

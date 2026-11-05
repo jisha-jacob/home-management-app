@@ -8,7 +8,7 @@
   <title>Home Management App</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="assets/icons/app-icon-192.png" sizes="192x192" type="image/png">
-  <link rel="stylesheet" href="css/styles.css?v=20261021-27">
+  <link rel="stylesheet" href="css/styles.css?v=20261105-2">
 </head>
 <body>
   <button class="audio-unlock-indicator" id="audio-unlock-indicator" type="button">🔈 Tap to enable sounds</button>
@@ -83,7 +83,18 @@
           <p id="calendar-upcoming-preview">No calendar connection yet.</p>
         </section>
       </div>
-      <section class="dashboard-card chores-card" aria-labelledby="chores-title">
+      <section class="dashboard-card photo-card" id="family-photo-card" aria-label="Family photo">
+        <div class="photo-frame" id="family-photo-frame">
+          <img class="photo-layer is-visible" id="family-photo-a" alt="">
+          <img class="photo-layer" id="family-photo-b" alt="">
+          <div class="photo-placeholder" id="family-photo-placeholder" hidden>
+            <p>Family photos will appear here</p>
+            <p class="photo-placeholder-hint parent-only-control" hidden>Add photos in Parent Mode</p>
+          </div>
+        </div>
+        <p class="photo-caption" id="family-photo-caption">0 of 0 done today</p>
+      </section>
+      <section class="dashboard-card chores-card" id="home-chores-card" aria-labelledby="chores-title" hidden>
       <div class="card-heading">
         <h2 id="chores-title">Today&rsquo;s Chores</h2>
         <span class="chore-count" id="home-chore-count">0 of 6 done</span>
@@ -485,6 +496,24 @@
         </form>
         <p class="form-status" id="change-parent-pin-status" role="status"></p>
       </section>
+      <section class="dashboard-card family-photos-card parent-only-control" aria-labelledby="family-photos-title" hidden>
+        <h2 id="family-photos-title">Family Photos</h2>
+        <p>Photos are resized on this device and stored privately in your household database. They are shown one at a time on Home.</p>
+        <p class="family-photos-count" id="family-photos-count">0 of 100 photos</p>
+        <label>
+          Add photos
+          <input id="family-photos-input" type="file" accept="image/*" multiple>
+        </label>
+        <progress class="family-photos-progress" id="family-photos-progress" value="0" max="1" hidden></progress>
+        <p class="form-status" id="family-photos-status" role="status"></p>
+        <button class="secondary-action" id="manage-family-photos-button" type="button">Manage photos</button>
+        <div id="family-photos-manage" hidden>
+          <ul class="photo-manage-grid" id="family-photos-grid"></ul>
+          <p class="form-status" id="family-photos-manage-status" role="status"></p>
+          <button class="secondary-action" id="family-photos-more-button" type="button" hidden>Show more</button>
+          <button class="secondary-action" id="family-photos-close-button" type="button">Close</button>
+        </div>
+      </section>
       <section class="dashboard-card household-content-card parent-only-control" aria-labelledby="household-content-title" hidden>
         <h2 id="household-content-title">Home Page Messages</h2>
         <p>Add a household reminder or weekly verse. Leave a field empty to hide that section on Home.</p>
@@ -543,7 +572,7 @@
     </section>
   </main>
   <script src="data/sample-data.js"></script>
-  <script src="js/app.js?v=20261021-27"></script>
-  <script type="module" src="js/auth-loader.js?v=20261020-22"></script>
+  <script src="js/app.js?v=20261105-2"></script>
+  <script type="module" src="js/auth-loader.js?v=20261105-1"></script>
 </body>
 </html>

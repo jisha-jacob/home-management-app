@@ -1,4 +1,14 @@
 document.addEventListener('DOMContentLoaded', function () {
+  var PHOTO_ROTATION_MINUTES = 30;
+  var MAX_FAMILY_PHOTOS = 100;
+  var PHOTO_MAX_SIDE = 1280;
+  var PHOTO_START_QUALITY = 0.75;
+  var PHOTO_MIN_QUALITY = 0.4;
+  // Limits apply to the base64 data URL string (about 1.33x the JPEG bytes): ~300 KB target, 700 KB hard cap.
+  var PHOTO_TARGET_CHARS = 400000;
+  var PHOTO_HARD_CAP_CHARS = 700000;
+  var PHOTO_MANAGE_PAGE_SIZE = 20;
+  var PHOTO_STATE_KEY = 'familyPhotoState';
   var currentDate = new Date();
   var completions = [];
   var todayTasks = [];
@@ -992,6 +1002,16 @@ document.addEventListener('DOMContentLoaded', function () {
       return chore.oneTime ? !chore.completed : !isCompletedOnDate(chore.id, currentDate);
     });
     var completedCount = profileChores.length - openProfileChores.length;
+
+    var photoCaption = document.getElementById('family-photo-caption');
+    var photoCard = document.getElementById('family-photo-card');
+    var choresCard = document.getElementById('home-chores-card');
+
+    if (photoCaption) {
+      photoCaption.textContent = (dueChores.length - openDueChores.length) + ' of ' + dueChores.length + ' done today';
+    }
+    if (photoCard) photoCard.hidden = selectedProfile !== 'family';
+    if (choresCard) choresCard.hidden = selectedProfile === 'family';
 
     renderChoreList('home-chore-list', profileChores, sampleData.members, sampleData.overrides);
     renderChoreList('today-chore-list', dueChores, sampleData.members, sampleData.overrides);
@@ -2306,7 +2326,542 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+  // ---- Family photo tile ----------------------------------------------------
+  var familyPhotoIds = [];
+  var photoBag = [];
+  var photoCurrentId = null;
+  var photoShownAt = 0;
+  var photoTimer = null;
+  var photoCache = {};
+  var photoActiveLayer = 'a';
+  var photoRequestToken = 0;
+  var photoHandlersBound = false;
+  var photoManageOffset = 0;
+
+  function readPhotoState() {
+    try {
+      var saved = JSON.parse(window.localStorage.getItem(PHOTO_STATE_KEY));
+
+      if (saved && Array.isArray(saved.bag)) return saved;
+    } catch (error) {
+      // localStorage unavailable; keep state in memory only.
+    }
+
+    return null;
+  }
+
+  function savePhotoState() {
+    try {
+      window.localStorage.setItem(PHOTO_STATE_KEY, JSON.stringify({
+        bag: photoBag,
+        current: photoCurrentId,
+        shownAt: photoShownAt
+      }));
+    } catch (error) {
+      // Ignore; the in-memory bag still prevents repeats.
+    }
+  }
+
+  function setPhotoPlaceholder(isVisible) {
+    var placeholder = document.getElementById('family-photo-placeholder');
+
+    if (placeholder) placeholder.hidden = !isVisible;
+    if (isVisible) {
+      document.getElementById('family-photo-a').classList.remove('is-visible');
+      document.getElementById('family-photo-b').classList.remove('is-visible');
+    }
+  }
+
+  function updateFamilyPhotoCount() {
+    var count = document.getElementById('family-photos-count');
+    var input = document.getElementById('family-photos-input');
+    var atLimit = familyPhotoIds.length >= MAX_FAMILY_PHOTOS;
+
+    if (count) {
+      count.textContent = familyPhotoIds.length + ' of ' + MAX_FAMILY_PHOTOS + ' photos' +
+        (atLimit ? ' — limit reached. Remove a photo to add another.' : '');
+    }
+    if (input) input.disabled = atLimit;
+  }
+
+  // Keeps the bag consistent with the index: drops deleted ids, inserts new ones at random spots.
+  function reconcilePhotoBag() {
+    photoBag = photoBag.filter(function (id) {
+      return familyPhotoIds.indexOf(id) !== -1 && id !== photoCurrentId;
+    });
+    if (photoCurrentId && familyPhotoIds.indexOf(photoCurrentId) === -1) photoCurrentId = null;
+
+    familyPhotoIds.forEach(function (id) {
+      if (id === photoCurrentId || photoBag.indexOf(id) !== -1) return;
+      photoBag.splice(Math.floor(Math.random() * (photoBag.length + 1)), 0, id);
+    });
+  }
+
+  function refillPhotoBag() {
+    photoBag = shuffleArray(familyPhotoIds);
+    if (photoBag.length > 1 && photoBag[0] === photoCurrentId) {
+      var swapIndex = 1 + Math.floor(Math.random() * (photoBag.length - 1));
+      var first = photoBag[0];
+
+      photoBag[0] = photoBag[swapIndex];
+      photoBag[swapIndex] = first;
+    }
+  }
+
+  function fetchPhotoDataUrl(id) {
+    if (photoCache[id]) return Promise.resolve(photoCache[id]);
+
+    return window.homeManagementData.loadFamilyPhoto(id).then(function (photo) {
+      if (!photo) return null;
+      photoCache[id] = photo.dataUrl;
+      return photo.dataUrl;
+    });
+  }
+
+  function preloadNextPhoto() {
+    var nextId = photoBag[0];
+
+    Object.keys(photoCache).forEach(function (id) {
+      if (id !== photoCurrentId && id !== nextId) delete photoCache[id];
+    });
+    if (!nextId || nextId === photoCurrentId) return;
+    fetchPhotoDataUrl(nextId).catch(function () {});
+  }
+
+  function schedulePhotoRotation() {
+    window.clearTimeout(photoTimer);
+    photoTimer = window.setTimeout(function () {
+      rotateFamilyPhoto(true);
+    }, Math.max(1000, PHOTO_ROTATION_MINUTES * 60000 - (Date.now() - photoShownAt)));
+  }
+
+  function schedulePhotoRetry() {
+    window.clearTimeout(photoTimer);
+    photoTimer = window.setTimeout(function () {
+      rotateFamilyPhoto(true);
+    }, PHOTO_ROTATION_MINUTES * 60000);
+  }
+
+  function displayPhoto(dataUrl, done) {
+    var nextLayer = document.getElementById(photoActiveLayer === 'a' ? 'family-photo-b' : 'family-photo-a');
+    var previousLayer = document.getElementById(photoActiveLayer === 'a' ? 'family-photo-a' : 'family-photo-b');
+
+    nextLayer.onload = function () {
+      nextLayer.onload = null;
+      nextLayer.onerror = null;
+      setPhotoPlaceholder(false);
+      nextLayer.classList.add('is-visible');
+      previousLayer.classList.remove('is-visible');
+      photoActiveLayer = photoActiveLayer === 'a' ? 'b' : 'a';
+      done(true);
+    };
+    nextLayer.onerror = function () {
+      nextLayer.onload = null;
+      nextLayer.onerror = null;
+      done(false);
+    };
+    nextLayer.src = dataUrl;
+  }
+
+  // Moves to the next photo in the bag, skipping any that fail to load or were deleted.
+  function advanceFamilyPhoto(attemptsLeft) {
+    var token = photoRequestToken + 1;
+
+    photoRequestToken = token;
+    reconcilePhotoBag();
+
+    if (!familyPhotoIds.length) {
+      photoCurrentId = null;
+      setPhotoPlaceholder(true);
+      savePhotoState();
+      return;
+    }
+    if (!photoBag.length) refillPhotoBag();
+
+    var id = photoBag.shift();
+
+    function skip() {
+      familyPhotoIds = familyPhotoIds.filter(function (photoId) { return photoId !== id; });
+      photoCurrentId = null;
+      if (!familyPhotoIds.length) {
+        setPhotoPlaceholder(true);
+      } else if (attemptsLeft > 0) {
+        advanceFamilyPhoto(attemptsLeft - 1);
+      }
+    }
+
+    fetchPhotoDataUrl(id).then(function (dataUrl) {
+      if (token !== photoRequestToken) return;
+      if (!dataUrl) {
+        skip();
+        return;
+      }
+      displayPhoto(dataUrl, function (shown) {
+        if (token !== photoRequestToken) return;
+        if (!shown) {
+          delete photoCache[id];
+          skip();
+          return;
+        }
+        photoCurrentId = id;
+        photoShownAt = Date.now();
+        if (!photoBag.length && familyPhotoIds.length > 1) refillPhotoBag();
+        savePhotoState();
+        schedulePhotoRotation();
+        preloadNextPhoto();
+      });
+    }).catch(function () {
+      if (token !== photoRequestToken) return;
+      photoBag.unshift(id);
+      schedulePhotoRetry();
+    });
+  }
+
+  function refreshFamilyPhotoIndex() {
+    return window.homeManagementData.loadFamilyPhotoIndex().then(function (ids) {
+      familyPhotoIds = ids;
+      updateFamilyPhotoCount();
+    });
+  }
+
+  // A timed rotation re-reads the index first; a tap uses the local bag so the preloaded photo shows instantly.
+  function rotateFamilyPhoto(rereadIndex) {
+    var advance = function () { advanceFamilyPhoto(familyPhotoIds.length + 1); };
+
+    if (!rereadIndex) {
+      advance();
+      return;
+    }
+    refreshFamilyPhotoIndex().then(advance).catch(schedulePhotoRetry);
+  }
+
+  // Called after Parent Mode adds or removes photos.
+  function refreshFamilyPhotos() {
+    return refreshFamilyPhotoIndex().then(function () {
+      reconcilePhotoBag();
+      if (!familyPhotoIds.length) {
+        photoCurrentId = null;
+        window.clearTimeout(photoTimer);
+        setPhotoPlaceholder(true);
+        savePhotoState();
+      } else if (!photoCurrentId) {
+        advanceFamilyPhoto(familyPhotoIds.length + 1);
+      } else {
+        savePhotoState();
+        preloadNextPhoto();
+      }
+    }).catch(function () {});
+  }
+
+  function showSavedPhoto() {
+    var token = photoRequestToken + 1;
+
+    photoRequestToken = token;
+    fetchPhotoDataUrl(photoCurrentId).then(function (dataUrl) {
+      if (token !== photoRequestToken) return;
+      if (!dataUrl) {
+        advanceFamilyPhoto(familyPhotoIds.length + 1);
+        return;
+      }
+      displayPhoto(dataUrl, function (shown) {
+        if (token !== photoRequestToken) return;
+        if (!shown) {
+          advanceFamilyPhoto(familyPhotoIds.length + 1);
+          return;
+        }
+        schedulePhotoRotation();
+        preloadNextPhoto();
+      });
+    }).catch(schedulePhotoRetry);
+  }
+
+  function startFamilyPhotos() {
+    var saved = readPhotoState();
+
+    photoBag = [];
+    photoCurrentId = null;
+    photoShownAt = 0;
+    if (saved) {
+      photoBag = saved.bag.filter(function (id) { return typeof id === 'string'; });
+      photoCurrentId = typeof saved.current === 'string' ? saved.current : null;
+      photoShownAt = Number(saved.shownAt) || 0;
+    }
+
+    if (!photoHandlersBound) {
+      photoHandlersBound = true;
+
+      document.addEventListener('visibilitychange', function () {
+        if (!document.hidden && photoShownAt && familyPhotoIds.length && Date.now() - photoShownAt >= PHOTO_ROTATION_MINUTES * 60000) {
+          rotateFamilyPhoto(true);
+        }
+      });
+    }
+
+    refreshFamilyPhotoIndex().then(function () {
+      reconcilePhotoBag();
+
+      var age = Date.now() - photoShownAt;
+
+      if (photoCurrentId && age >= 0 && age < PHOTO_ROTATION_MINUTES * 60000) {
+        showSavedPhoto();
+      } else {
+        advanceFamilyPhoto(familyPhotoIds.length + 1);
+      }
+    }).catch(schedulePhotoRetry);
+  }
+
+  function stopFamilyPhotos() {
+    window.clearTimeout(photoTimer);
+    photoRequestToken += 1;
+    photoCache = {};
+    familyPhotoIds = [];
+    ['family-photo-a', 'family-photo-b'].forEach(function (id) {
+      var layer = document.getElementById(id);
+
+      layer.onload = null;
+      layer.onerror = null;
+      layer.classList.remove('is-visible');
+      layer.removeAttribute('src');
+    });
+    closePhotoManage();
+  }
+
+  // ---- Parent Mode: add photos ---------------------------------------------
+  function loadPhotoSource(file) {
+    var fallback = function () {
+      return new Promise(function (resolve, reject) {
+        var url = window.URL.createObjectURL(file);
+        var image = new Image();
+
+        image.onload = function () {
+          resolve({
+            source: image,
+            width: image.naturalWidth,
+            height: image.naturalHeight,
+            release: function () { window.URL.revokeObjectURL(url); }
+          });
+        };
+        image.onerror = function () {
+          window.URL.revokeObjectURL(url);
+          reject(new Error('unreadable image'));
+        };
+        image.src = url;
+      });
+    };
+
+    if (!window.createImageBitmap) return fallback();
+
+    // Browsers that support the options object apply EXIF orientation; otherwise <img> does so by default.
+    return window.createImageBitmap(file, { imageOrientation: 'from-image' }).then(function (bitmap) {
+      return {
+        source: bitmap,
+        width: bitmap.width,
+        height: bitmap.height,
+        release: function () { if (bitmap.close) bitmap.close(); }
+      };
+    }).catch(fallback);
+  }
+
+  // Steps JPEG quality down (then dimensions) until the data URL fits the target size.
+  function resizeImageFile(file) {
+    return loadPhotoSource(file).then(function (loaded) {
+      var best = null;
+
+      try {
+        var longest = Math.max(loaded.width, loaded.height);
+
+        if (!longest) throw new Error('empty image');
+
+        var shrinkSteps = [1, 0.85, 0.7, 0.55];
+
+        for (var s = 0; s < shrinkSteps.length; s += 1) {
+          var scale = Math.min(1, PHOTO_MAX_SIDE / longest) * shrinkSteps[s];
+          var width = Math.max(1, Math.round(loaded.width * scale));
+          var height = Math.max(1, Math.round(loaded.height * scale));
+          var canvas = document.createElement('canvas');
+
+          canvas.width = width;
+          canvas.height = height;
+
+          var context = canvas.getContext('2d');
+
+          context.fillStyle = '#ffffff';
+          context.fillRect(0, 0, width, height);
+          context.drawImage(loaded.source, 0, 0, width, height);
+
+          for (var quality = PHOTO_START_QUALITY; quality >= PHOTO_MIN_QUALITY - 0.001; quality -= 0.05) {
+            var dataUrl = canvas.toDataURL('image/jpeg', quality);
+
+            if (dataUrl.indexOf('data:image/jpeg') !== 0) throw new Error('JPEG encoding unsupported');
+            if (!best || dataUrl.length < best.dataUrl.length) best = { dataUrl: dataUrl, width: width, height: height };
+            if (dataUrl.length <= PHOTO_TARGET_CHARS) {
+              canvas.width = 0;
+              canvas.height = 0;
+              return best;
+            }
+          }
+          canvas.width = 0;
+          canvas.height = 0;
+        }
+      } finally {
+        loaded.release();
+      }
+
+      if (!best || best.dataUrl.length > PHOTO_HARD_CAP_CHARS) throw new Error('too large after compression');
+      return best;
+    });
+  }
+
+  async function handleFamilyPhotoFiles(fileList) {
+    var input = document.getElementById('family-photos-input');
+    var status = document.getElementById('family-photos-status');
+    var progress = document.getElementById('family-photos-progress');
+    var files = Array.prototype.slice.call(fileList);
+
+    if (!parentModeActive || files.length === 0) return;
+
+    input.disabled = true;
+    try {
+      await refreshFamilyPhotoIndex();
+    } catch (error) {
+      status.textContent = 'Could not check the current photo count: ' + error.message;
+      updateFamilyPhotoCount();
+      return;
+    }
+
+    var room = MAX_FAMILY_PHOTOS - familyPhotoIds.length;
+    var queue = files.slice(0, Math.max(room, 0));
+    var failed = [];
+    var added = 0;
+
+    if (queue.length === 0) {
+      status.textContent = 'The ' + MAX_FAMILY_PHOTOS + ' photo limit is reached. Remove a photo to add another.';
+      input.value = '';
+      updateFamilyPhotoCount();
+      return;
+    }
+
+    progress.max = queue.length;
+    progress.value = 0;
+    progress.hidden = false;
+
+    for (var i = 0; i < queue.length; i += 1) {
+      status.textContent = 'Adding photo ' + (i + 1) + ' of ' + queue.length + '...';
+      try {
+        var photo = await resizeImageFile(queue[i]);
+        var newId = await window.homeManagementData.addFamilyPhoto(photo);
+
+        familyPhotoIds.push(newId);
+        added += 1;
+      } catch (error) {
+        failed.push(queue[i].name || ('file ' + (i + 1)));
+      }
+      progress.value = i + 1;
+    }
+
+    var message = added + (added === 1 ? ' photo added.' : ' photos added.');
+
+    if (files.length > queue.length) {
+      message += ' ' + (files.length - queue.length) + ' not added because the ' + MAX_FAMILY_PHOTOS + ' photo limit was reached.';
+    }
+    if (failed.length) message += ' Skipped (could not be processed): ' + failed.join(', ') + '.';
+    status.textContent = message;
+    progress.hidden = true;
+    input.value = '';
+    await refreshFamilyPhotos();
+  }
+
+  // ---- Parent Mode: manage (remove) photos ---------------------------------
+  function closePhotoManage() {
+    var manage = document.getElementById('family-photos-manage');
+    var grid = document.getElementById('family-photos-grid');
+
+    if (grid) grid.textContent = '';
+    if (manage) manage.hidden = true;
+    photoManageOffset = 0;
+  }
+
+  async function loadPhotoManagePage() {
+    var grid = document.getElementById('family-photos-grid');
+    var moreButton = document.getElementById('family-photos-more-button');
+    var status = document.getElementById('family-photos-manage-status');
+    var newestFirst = familyPhotoIds.slice().reverse();
+    var pageIds = newestFirst.slice(photoManageOffset, photoManageOffset + PHOTO_MANAGE_PAGE_SIZE);
+
+    moreButton.disabled = true;
+    status.textContent = pageIds.length ? 'Loading photos...' : 'No photos yet.';
+
+    var photos = await Promise.all(pageIds.map(function (id) {
+      return window.homeManagementData.loadFamilyPhoto(id).catch(function () { return null; });
+    }));
+
+    photos.forEach(function (photo) {
+      if (!photo) return;
+
+      var item = document.createElement('li');
+      var image = document.createElement('img');
+      var button = document.createElement('button');
+
+      item.className = 'photo-manage-item';
+      image.alt = 'Family photo';
+      image.src = photo.dataUrl;
+      button.type = 'button';
+      button.className = 'secondary-action';
+      button.textContent = 'Remove';
+      button.addEventListener('click', async function () {
+        if (!window.confirm('Remove this photo? This cannot be undone.')) return;
+
+        button.disabled = true;
+        try {
+          await window.homeManagementData.removeFamilyPhoto(photo.id);
+          item.remove();
+          delete photoCache[photo.id];
+          status.textContent = 'Photo removed.';
+          await refreshFamilyPhotos();
+        } catch (error) {
+          button.disabled = false;
+          status.textContent = 'Could not remove the photo: ' + error.message;
+        }
+      });
+      item.appendChild(image);
+      item.appendChild(button);
+      grid.appendChild(item);
+    });
+
+    photoManageOffset += PHOTO_MANAGE_PAGE_SIZE;
+    if (pageIds.length) status.textContent = '';
+    moreButton.hidden = photoManageOffset >= newestFirst.length;
+    moreButton.disabled = false;
+  }
+
+  async function openPhotoManage() {
+    var status = document.getElementById('family-photos-manage-status');
+
+    document.getElementById('family-photos-grid').textContent = '';
+    document.getElementById('family-photos-manage').hidden = false;
+    photoManageOffset = 0;
+    try {
+      await refreshFamilyPhotoIndex();
+      await loadPhotoManagePage();
+    } catch (error) {
+      status.textContent = 'Could not load photos: ' + error.message;
+    }
+  }
+
+  document.getElementById('family-photos-input').addEventListener('change', function (event) {
+    handleFamilyPhotoFiles(event.target.files);
+  });
+  document.getElementById('manage-family-photos-button').addEventListener('click', openPhotoManage);
+  document.getElementById('family-photos-more-button').addEventListener('click', function () {
+    loadPhotoManagePage().catch(function (error) {
+      document.getElementById('family-photos-manage-status').textContent = 'Could not load photos: ' + error.message;
+    });
+  });
+  document.getElementById('family-photos-close-button').addEventListener('click', closePhotoManage);
+
   window.homeManagementApp = {
+    startFamilyPhotos: startFamilyPhotos,
+    stopFamilyPhotos: stopFamilyPhotos,
     setMembers: function (members) {
       var sampleData = window.homeManagementSampleData;
 
@@ -2466,6 +3021,8 @@ document.addEventListener('DOMContentLoaded', function () {
       if (!isActive) {
         closeChoreEditor();
         closeTodayTaskForm();
+        closePhotoManage();
+        document.getElementById('family-photos-status').textContent = '';
       }
       document.getElementById('connect-calendar-button').hidden = !isActive || calendarConnected;
       document.getElementById('disconnect-calendar-button').hidden = !isActive || !calendarConnected;

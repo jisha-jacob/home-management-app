@@ -21,7 +21,7 @@ import {
   loadTodayOverrides,
   saveParentPin,
   verifyParentPin
-} from "./firestore-data.js?v=20261020-22";
+} from "./firestore-data.js?v=20261105-1";
 
 const authScreen = document.getElementById('auth-screen');
 const authMessage = document.getElementById('auth-message');
@@ -121,6 +121,7 @@ async function showApp(authorization) {
   await loadShoppingItems();
   await loadParentModeSettings();
   await loadReminderSettings();
+  window.homeManagementApp.startFamilyPhotos();
   try {
     await loadCalendarConnection();
   } catch (error) {
@@ -156,6 +157,7 @@ signInButton.addEventListener('click', async function () {
 
 signOutButton.addEventListener('click', async function () {
   window.homeManagementData.stopSync();
+  window.homeManagementApp.stopFamilyPhotos();
   await signOut(auth);
   showSignedOut('You have signed out.');
 });
